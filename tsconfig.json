@@ -1,0 +1,3 @@
+{
+  "extends": "@health-conversation/config/tsconfig.base.json"
+}

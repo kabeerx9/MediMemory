@@ -24,14 +24,14 @@ export default function UserMenu() {
   if (!session) {
     return (
       <Link to="/login">
-        <Button variant="outline">Sign In</Button>
+        <Button>Sign in</Button>
       </Link>
     );
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />}>
         {session.user.name}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card">

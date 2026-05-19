@@ -1,27 +1,22 @@
 import type { FormEvent } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { Badge } from "@health-conversation/ui/components/badge";
 import { Button } from "@health-conversation/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@health-conversation/ui/components/card";
 import { Input } from "@health-conversation/ui/components/input";
 import { Label } from "@health-conversation/ui/components/label";
+import { Textarea } from "@health-conversation/ui/components/textarea";
 import type { HealthWorkspace, MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@health-conversation/ui/components/sidebar";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { FileText, MessageSquarePlus, Plus, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { Eyebrow } from "@/components/brand";
+import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { healthApi } from "@/features/health/api";
 
-export const workspaceSections = [
-  { to: "/workspaces/$workspaceId", label: "Overview" },
-  { to: "/workspaces/$workspaceId/status", label: "Current Status" },
-  { to: "/workspaces/$workspaceId/timeline", label: "Timeline" },
-  { to: "/workspaces/$workspaceId/medications", label: "Medications" },
-  { to: "/workspaces/$workspaceId/symptoms", label: "Symptoms" },
-  { to: "/workspaces/$workspaceId/reports", label: "Reports" },
-  { to: "/workspaces/$workspaceId/questions", label: "Doctor Questions" },
-  { to: "/workspaces/$workspaceId/chat", label: "Chat" },
-  { to: "/workspaces/$workspaceId/import", label: "Import" },
-] as const;
+export { workspaceSections } from "@/features/health/workspace-nav";
 
 const WorkspaceContext = createContext<WorkspaceRouteContext | null>(null);
 
@@ -49,74 +44,52 @@ export function WorkspaceShell({ workspaceId, userEmail }: { workspaceId: string
       .finally(() => setLoading(false));
   }, [refresh]);
 
-  if (loading) return <PageShell>Loading...</PageShell>;
+  if (loading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center starfield text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
 
   return (
-    <PageShell>
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <aside className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Workspaces</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {workspaces.map((workspace) => (
-                <Link
-                  key={workspace.id}
-                  className={"block w-full rounded-md border px-3 py-2 text-left text-sm " + (workspace.id === workspaceId ? "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950 dark:text-blue-50" : "hover:bg-muted")}
-                  params={{ workspaceId: workspace.id }}
-                  to="/workspaces/$workspaceId"
-                >
-                  <div className="font-medium">{workspace.name}</div>
-                  <div className="line-clamp-2 text-xs text-muted-foreground">{workspace.diagnosis || "No diagnosis/context yet"}</div>
-                </Link>
-              ))}
-              <Link className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 border border-border px-2.5 text-xs font-medium hover:bg-muted" to="/workspaces/new">
-                <Plus className="size-4" />New workspace
-              </Link>
-            </CardContent>
-          </Card>
-        </aside>
-
-        <section className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              {userEmail ? <p className="text-sm text-muted-foreground">Signed in as {userEmail}</p> : null}
-              <h1 className="text-2xl font-semibold tracking-tight">{detail?.workspace.name ?? "Workspace"}</h1>
-            </div>
-            {detail ? <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Curated memory, not raw chat history</span> : null}
+    <SidebarProvider className="flex min-h-0 min-w-0 flex-1">
+      <WorkspaceSidebar workspaces={workspaces} workspaceId={workspaceId} />
+      <SidebarInset className="starfield min-w-0">
+        <header className="flex shrink-0 flex-wrap items-start gap-3 border-b border-border px-4 py-4 lg:px-8">
+          <SidebarTrigger className="mt-0.5" />
+          <div className="min-w-0 flex-1 space-y-1">
+            {userEmail ? <Eyebrow className="normal-case tracking-normal">{userEmail}</Eyebrow> : null}
+            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              {detail?.workspace.name ?? "Workspace"}
+            </h1>
           </div>
+          {detail ? <Badge variant="violet">Curated memory · not raw chat</Badge> : null}
+        </header>
 
+        <div className="mx-auto w-full max-w-7xl flex-1 space-y-5 overflow-y-auto px-4 py-6 lg:px-8">
           {error ? <ErrorMessage message={error} /> : null}
 
           {detail ? (
             <WorkspaceContext.Provider value={{ detail, refresh }}>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {workspaceSections.map((section) => (
-                  <Link
-                    key={section.to}
-                    activeProps={{ className: "bg-primary text-primary-foreground" }}
-                    className="shrink-0 rounded-md border px-3 py-2 text-sm hover:bg-muted"
-                    params={{ workspaceId }}
-                    to={section.to}
-                  >
-                    {section.label}
-                  </Link>
-                ))}
-              </div>
               {pathname === "/workspaces/" + workspaceId ? <WorkspaceOverview detail={detail} /> : <Outlet />}
             </WorkspaceContext.Provider>
           ) : (
             <EmptyState>Create or select a workspace to begin.</EmptyState>
           )}
-        </section>
-      </div>
-    </PageShell>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
+
 export function PageShell({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-0 overflow-y-auto bg-background px-4 py-5 lg:px-8"><div className="mx-auto max-w-7xl space-y-4">{children}</div></main>;
+  return (
+    <main className="starfield min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-4">{children}</div>
+    </main>
+  );
 }
 
 export function NewWorkspacePage() {
@@ -147,11 +120,12 @@ export function NewWorkspacePage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-2xl space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Create workspace</h1>
+        <div className="space-y-2">
+          <Eyebrow>New workspace</Eyebrow>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Create workspace</h1>
           <p className="text-sm text-muted-foreground">Set up one patient or health case before adding memory.</p>
         </div>
-        <Card>
+        <Card variant="light">
           <CardContent className="pt-6">
             <form className="space-y-4" onSubmit={createWorkspace}>
               <Field label="Name"><Input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} required /></Field>
@@ -179,7 +153,7 @@ export function WorkspaceOverview({ detail }: { detail: WorkspaceDetail }) {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <Card>
+      <Card variant="feature">
         <CardHeader><CardTitle>Overview</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {statusItems.map((item) => (
@@ -191,7 +165,7 @@ export function WorkspaceOverview({ detail }: { detail: WorkspaceDetail }) {
         </CardContent>
       </Card>
       <div className="space-y-4">
-        <Card>
+        <Card variant="spotlight">
           <CardHeader><CardTitle className="text-base">Needs attention</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {openQuestions.length === 0 ? <p className="text-sm text-muted-foreground">No open doctor questions.</p> : openQuestions.map((item) => <CompactItem key={item.id} title={item.question} body={item.context ?? ""} />)}
@@ -345,12 +319,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>;
 }
 
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={"min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring " + (props.className ?? "")} />;
+function TextArea(props: React.ComponentProps<typeof Textarea>) {
+  return <Textarea {...props} />;
 }
 
 function ErrorMessage({ message }: { message: string }) {
-  return <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-100">{message}</div>;
+  return (
+    <div className="rounded-md border border-sentri-pink/40 bg-sentri-pink/10 px-3 py-2 text-sm text-sentri-pink">
+      {message}
+    </div>
+  );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
@@ -470,7 +448,9 @@ function ChatTab({ detail, onRefresh, onProposal }: { detail: WorkspaceDetail; o
     }
   }
 
-  return <Card><CardHeader><CardTitle>Workspace Chat</CardTitle></CardHeader><CardContent className="space-y-4"><div className="max-h-[460px] space-y-3 overflow-y-auto rounded-md border p-3">{messages.length === 0 ? <p className="text-sm text-muted-foreground">New temporary chat.</p> : messages.map((item, index) => <div key={index + item.role + item.content.slice(0, 12)} className={"rounded-md px-3 py-2 text-sm " + (item.role === "user" ? "ml-8 bg-blue-50 text-blue-950 dark:bg-blue-950 dark:text-blue-50" : "mr-8 bg-muted")}><div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{item.role}</div><div className="whitespace-pre-wrap">{item.content}</div></div>)}</div><form className="space-y-3" onSubmit={send}><TextArea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ask about the case, prepare doctor questions, or paste an update..." rows={5} /><div className="flex flex-wrap gap-2"><Button disabled={busy || !message.trim()} type="submit"><MessageSquarePlus className="mr-2 size-4" />Send</Button><Button disabled={busy || messages.length === 0} onClick={propose} type="button" variant="outline"><Sparkles className="mr-2 size-4" />Add to Context</Button><Button disabled={busy || messages.length === 0} onClick={saveChat} type="button" variant="outline"><Save className="mr-2 size-4" />Save Chat</Button><Button disabled={busy || messages.length === 0} onClick={() => setMessages([])} type="button" variant="outline"><Plus className="mr-2 size-4" />New Chat</Button></div></form></CardContent></Card>;
+  return <Card variant="feature"><CardHeader><CardTitle>Workspace Chat</CardTitle></CardHeader><CardContent className="space-y-4"><div className="max-h-[460px] space-y-3 overflow-y-auto rounded-lg border border-border bg-[var(--surface-code)] p-3">{messages.length === 0 ? <p className="text-sm text-muted-foreground">New temporary chat.</p> : messages.map((item, index) => <div key={index + item.role + item.content.slice(0, 12)} className={"rounded-md px-3 py-2 text-sm " + (item.role === "user"
+                        ? "ml-8 border border-sentri-lime/40 bg-[var(--surface-chat-user)] text-foreground"
+                        : "mr-8 border border-border bg-[var(--surface-chat-assistant)] font-mono-code")}><div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{item.role}</div><div className="whitespace-pre-wrap">{item.content}</div></div>)}</div><form className="space-y-3" onSubmit={send}><TextArea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ask about the case, prepare doctor questions, or paste an update..." rows={5} /><div className="flex flex-wrap gap-2"><Button disabled={busy || !message.trim()} type="submit"><MessageSquarePlus className="mr-2 size-4" />Send</Button><Button disabled={busy || messages.length === 0} onClick={propose} type="button" variant="outline"><Sparkles className="mr-2 size-4" />Add to Context</Button><Button disabled={busy || messages.length === 0} onClick={saveChat} type="button" variant="outline"><Save className="mr-2 size-4" />Save Chat</Button><Button disabled={busy || messages.length === 0} onClick={() => setMessages([])} type="button" variant="outline"><Plus className="mr-2 size-4" />New Chat</Button></div></form></CardContent></Card>;
 }
 
 function TwoColumn({ title, form, items }: { title: string; form: React.ReactNode; items: Array<{ title: string; meta: string; body: string }> }) {

@@ -1,4 +1,5 @@
 import { Button } from "@health-conversation/ui/components/button";
+import { Card, CardContent } from "@health-conversation/ui/components/card";
 import { Input } from "@health-conversation/ui/components/input";
 import { Label } from "@health-conversation/ui/components/label";
 import { useForm } from "@tanstack/react-form";
@@ -6,32 +7,23 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
+import { DisplayHero, Eyebrow, LimeKeyword, StarfieldCanvas } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
-  const navigate = useNavigate({
-    from: "/",
-  });
+  const navigate = useNavigate({ from: "/" });
   const { isPending } = authClient.useSession();
 
   const form = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
     onSubmit: async ({ value }) => {
       await authClient.signIn.email(
-        {
-          email: value.email,
-          password: value.password,
-        },
+        { email: value.email, password: value.password },
         {
           onSuccess: () => {
-            navigate({
-              to: "/",
-            });
+            navigate({ to: "/" });
             toast.success("Sign in successful");
           },
           onError: (error) => {
@@ -48,88 +40,99 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
     },
   });
 
-  if (isPending) {
-    return <Loader />;
-  }
+  if (isPending) return <Loader />;
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          form.handleSubmit();
-        }}
-        className="space-y-4"
-      >
-        <div>
-          <form.Field name="email">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="email"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
+    <StarfieldCanvas className="flex items-center justify-center px-4 py-12">
+      <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_420px]">
+        <div className="hidden space-y-4 lg:block">
+          <Eyebrow>Health memory workspace</Eyebrow>
+          <DisplayHero>
+            Curated health <LimeKeyword>memory</LimeKeyword>
+          </DisplayHero>
+          <p className="type-body-lg max-w-md text-muted-foreground">
+            Temporary chats stay separate from what gets saved to your workspace. Review before anything becomes permanent.
+          </p>
         </div>
 
-        <div>
-          <form.Field name="password">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="password"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
-            )}
-          </form.Field>
-        </div>
+        <Card variant="light">
+          <CardContent className="space-y-6 pt-8">
+            <div className="space-y-1 text-center lg:text-left">
+              <Eyebrow className="text-sentri-violet-mid">Sign in</Eyebrow>
+              <h2 className="font-display text-2xl font-semibold text-card-foreground">Welcome back</h2>
+            </div>
 
-        <form.Subscribe
-          selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
-        >
-          {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Sign In"}
-            </Button>
-          )}
-        </form.Subscribe>
-      </form>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                form.handleSubmit();
+              }}
+            >
+              <form.Field name="email">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name}>
+                      Email
+                    </Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="email"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                    {field.state.meta.errors.map((error) => (
+                      <p key={error?.message} className="text-sm text-destructive">
+                        {error?.message}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </form.Field>
 
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Need an account? Sign Up
-        </Button>
+              <form.Field name="password">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name}>
+                      Password
+                    </Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="password"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                    {field.state.meta.errors.map((error) => (
+                      <p key={error?.message} className="text-sm text-destructive">
+                        {error?.message}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Subscribe selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}>
+                {({ canSubmit, isSubmitting }) => (
+                  <Button className="w-full glow-cta-dark" disabled={!canSubmit || isSubmitting} type="submit">
+                    {isSubmitting ? "Signing in…" : "Sign in"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </form>
+
+            <div className="text-center">
+              <Button onClick={onSwitchToSignUp} type="button" variant="link">
+                Need an account? <LimeKeyword className="ml-1 text-sm">Sign up</LimeKeyword>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </StarfieldCanvas>
   );
 }

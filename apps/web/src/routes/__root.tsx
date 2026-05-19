@@ -1,5 +1,6 @@
 import { Toaster } from "@health-conversation/ui/components/sonner";
-import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { TooltipProvider } from "@health-conversation/ui/components/tooltip";
+import { HeadContent, Outlet, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import Header from "@/components/header";
@@ -22,15 +23,28 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       },
     ],
     links: [
+      { rel: "icon", href: "/favicon.ico" },
       {
-        rel: "icon",
-        href: "/favicon.ico",
+        rel: "preconnect",
+        href: "https://fonts.googleapis.com",
+      },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap",
       },
     ],
   }),
 });
 
 function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthPage = pathname === "/login";
+
   return (
     <>
       <HeadContent />
@@ -40,11 +54,19 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
-          <Outlet />
-        </div>
-        <Toaster richColors />
+        <TooltipProvider>
+          <div
+            className={
+              isAuthPage
+                ? "h-svh bg-background"
+                : "grid h-svh grid-rows-[auto_1fr] bg-background [&>*:last-child]:min-h-0"
+            }
+          >
+            {isAuthPage ? null : <Header />}
+            <Outlet />
+          </div>
+          <Toaster richColors />
+        </TooltipProvider>
       </ThemeProvider>
       <TanStackRouterDevtools position="bottom-left" />
     </>

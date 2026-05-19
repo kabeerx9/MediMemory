@@ -1,11 +1,10 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
-import { db } from "./index";
-import { user } from "./schema/auth";
-import { doctorQuestions, healthSources, healthWorkspaces, medications, reportFiles, symptoms, timelineEntries } from "./schema/health";
+
+dotenv.config({ path: "../../apps/server/.env" });
 
 const seedEmail = process.env.SEED_USER_EMAIL;
 const seedFile = process.env.PERSONAL_SEED_FILE;
@@ -16,6 +15,14 @@ if (!seedEmail) {
 if (!seedFile) {
   throw new Error("PERSONAL_SEED_FILE is required");
 }
+
+const [{ db }, { user }, healthSchema] = await Promise.all([
+  import("./index"),
+  import("./schema/auth"),
+  import("./schema/health"),
+]);
+
+const { doctorQuestions, healthSources, healthWorkspaces, medications, reportFiles, symptoms, timelineEntries } = healthSchema;
 
 const [owner] = await db.select().from(user).where(eq(user.email, seedEmail)).limit(1);
 if (!owner) {

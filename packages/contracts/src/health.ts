@@ -100,7 +100,6 @@ export const createTimelineEntryInputSchema = z.object({
   details: z.string().trim().max(8000).nullable().optional(),
   sourceRefs: z.array(sourceRefSchema).optional(),
 });
-export const updateTimelineEntryInputSchema = createTimelineEntryInputSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const medicationSchema = z.object({
   id: z.uuid(),
@@ -131,7 +130,6 @@ export const createMedicationInputSchema = z.object({
   notes: z.string().trim().max(4000).nullable().optional(),
   sourceRefs: z.array(sourceRefSchema).optional(),
 });
-export const updateMedicationInputSchema = createMedicationInputSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const symptomSchema = z.object({
   id: z.uuid(),
@@ -158,7 +156,6 @@ export const createSymptomInputSchema = z.object({
   notes: z.string().trim().max(4000).nullable().optional(),
   sourceRefs: z.array(sourceRefSchema).optional(),
 });
-export const updateSymptomInputSchema = createSymptomInputSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const doctorQuestionSchema = z.object({
   id: z.uuid(),
@@ -179,7 +176,6 @@ export const createDoctorQuestionInputSchema = z.object({
   answer: z.string().trim().max(3000).nullable().optional(),
   sourceRefs: z.array(sourceRefSchema).optional(),
 });
-export const updateDoctorQuestionInputSchema = createDoctorQuestionInputSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const reportFileSchema = z.object({
   id: z.uuid(),
@@ -202,7 +198,6 @@ export const createReportFileInputSchema = z.object({
   summary: z.string().trim().max(6000).nullable().optional(),
   sourceRefs: z.array(sourceRefSchema).optional(),
 });
-export const updateReportFileInputSchema = createReportFileInputSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const chatSessionSchema = z.object({
   id: z.uuid(),
@@ -333,11 +328,9 @@ export const workspaceDetailSchema = z.object({
 export const workspacesResponseSchema = z.object({
   workspaces: z.array(healthWorkspaceSchema),
 });
-export const idParamsSchema = z.object({ id: z.uuid() });
 export const workspaceParamsSchema = z.object({ workspaceId: z.uuid() });
 export const chatSessionParamsSchema = z.object({ workspaceId: z.uuid(), sessionId: z.uuid() });
 export const proposalParamsSchema = z.object({ proposalId: z.uuid() });
-export const deleteResponseSchema = z.object({ deleted: z.boolean() });
 
 export type HealthWorkspace = z.infer<typeof healthWorkspaceSchema>;
 export type WorkspaceDetail = z.infer<typeof workspaceDetailSchema>;
@@ -345,19 +338,14 @@ export type CreateWorkspaceInput = z.infer<typeof createWorkspaceInputSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInputSchema>;
 export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
 export type CreateTimelineEntryInput = z.infer<typeof createTimelineEntryInputSchema>;
-export type UpdateTimelineEntryInput = z.infer<typeof updateTimelineEntryInputSchema>;
 export type Medication = z.infer<typeof medicationSchema>;
 export type CreateMedicationInput = z.infer<typeof createMedicationInputSchema>;
-export type UpdateMedicationInput = z.infer<typeof updateMedicationInputSchema>;
 export type Symptom = z.infer<typeof symptomSchema>;
 export type CreateSymptomInput = z.infer<typeof createSymptomInputSchema>;
-export type UpdateSymptomInput = z.infer<typeof updateSymptomInputSchema>;
 export type DoctorQuestion = z.infer<typeof doctorQuestionSchema>;
 export type CreateDoctorQuestionInput = z.infer<typeof createDoctorQuestionInputSchema>;
-export type UpdateDoctorQuestionInput = z.infer<typeof updateDoctorQuestionInputSchema>;
 export type ReportFile = z.infer<typeof reportFileSchema>;
 export type CreateReportFileInput = z.infer<typeof createReportFileInputSchema>;
-export type UpdateReportFileInput = z.infer<typeof updateReportFileInputSchema>;
 export type ChatSession = z.infer<typeof chatSessionSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type CreateChatSessionInput = z.infer<typeof createChatSessionInputSchema>;

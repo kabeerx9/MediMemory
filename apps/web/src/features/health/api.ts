@@ -1,11 +1,6 @@
 import { env } from "@health-conversation/env/web";
 import type {
   CreateContextImportInput,
-  CreateDoctorQuestionInput,
-  CreateMedicationInput,
-  CreateReportFileInput,
-  CreateSymptomInput,
-  CreateTimelineEntryInput,
   CreateWorkspaceInput,
   MemoryProposal,
   TemporaryChatMessageInput,
@@ -41,11 +36,6 @@ export const healthApi = {
   createWorkspace: (input: CreateWorkspaceInput) => apiFetch<HealthWorkspace>("/api/v1/workspaces", { method: "POST", body: JSON.stringify(input) }),
   getWorkspace: (workspaceId: string) => apiFetch<WorkspaceDetail>("/api/v1/workspaces/" + workspaceId),
   updateWorkspace: (workspaceId: string, input: UpdateWorkspaceInput) => apiFetch<HealthWorkspace>("/api/v1/workspaces/" + workspaceId, { method: "PATCH", body: JSON.stringify(input) }),
-  createTimeline: (workspaceId: string, input: CreateTimelineEntryInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/timeline", { method: "POST", body: JSON.stringify(input) }),
-  createMedication: (workspaceId: string, input: CreateMedicationInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/medications", { method: "POST", body: JSON.stringify(input) }),
-  createSymptom: (workspaceId: string, input: CreateSymptomInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/symptoms", { method: "POST", body: JSON.stringify(input) }),
-  createReport: (workspaceId: string, input: CreateReportFileInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/reports", { method: "POST", body: JSON.stringify(input) }),
-  createDoctorQuestion: (workspaceId: string, input: CreateDoctorQuestionInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/doctor-questions", { method: "POST", body: JSON.stringify(input) }),
   createChatSession: (workspaceId: string, title?: string | null) => apiFetch<{ id: string }>("/api/v1/workspaces/" + workspaceId + "/chat/sessions", { method: "POST", body: JSON.stringify({ title }) }),
   sendTemporaryChatTurn: (workspaceId: string, message: string, messages: TemporaryChatMessageInput[]) => apiFetch<ChatTurnResponse>("/api/v1/workspaces/" + workspaceId + "/chat/respond", { method: "POST", body: JSON.stringify({ message, messages }) }),
   saveChat: (workspaceId: string, title: string | null, messages: TemporaryChatMessageInput[]) => apiFetch<{ id: string }>("/api/v1/workspaces/" + workspaceId + "/chat/save", { method: "POST", body: JSON.stringify({ title, messages }) }),

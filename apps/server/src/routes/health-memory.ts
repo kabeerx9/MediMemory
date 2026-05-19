@@ -3,24 +3,12 @@ import {
   createChatMessageInputSchema,
   createChatSessionInputSchema,
   createContextImportInputSchema,
-  createDoctorQuestionInputSchema,
-  createMedicationInputSchema,
-  createReportFileInputSchema,
-  createSymptomInputSchema,
-  createTimelineEntryInputSchema,
   saveChatInputSchema,
   temporaryChatMemoryProposalInputSchema,
   temporaryChatTurnInputSchema,
   createWorkspaceInputSchema,
-  deleteResponseSchema,
-  idParamsSchema,
   proposalParamsSchema,
-  updateDoctorQuestionInputSchema,
-  updateMedicationInputSchema,
   updateMemoryProposalInputSchema,
-  updateReportFileInputSchema,
-  updateSymptomInputSchema,
-  updateTimelineEntryInputSchema,
   updateWorkspaceInputSchema,
   workspaceDetailSchema,
   workspaceParamsSchema,
@@ -52,96 +40,6 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
     return healthService.updateWorkspace(userId, workspaceId, updateWorkspaceInputSchema.parse(request.body));
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/timeline", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.createTimeline(userId, workspaceId, createTimelineEntryInputSchema.parse(request.body));
-  });
-  fastify.patch("/api/v1/workspaces/:workspaceId/timeline/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return healthService.updateTimeline(userId, workspaceId, id, updateTimelineEntryInputSchema.parse(request.body));
-  });
-  fastify.delete("/api/v1/workspaces/:workspaceId/timeline/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return deleteResponseSchema.parse({ deleted: await healthService.deleteTimeline(userId, workspaceId, id) });
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/medications", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.createMedication(userId, workspaceId, createMedicationInputSchema.parse(request.body));
-  });
-  fastify.patch("/api/v1/workspaces/:workspaceId/medications/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return healthService.updateMedication(userId, workspaceId, id, updateMedicationInputSchema.parse(request.body));
-  });
-  fastify.delete("/api/v1/workspaces/:workspaceId/medications/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return deleteResponseSchema.parse({ deleted: await healthService.deleteMedication(userId, workspaceId, id) });
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/symptoms", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.createSymptom(userId, workspaceId, createSymptomInputSchema.parse(request.body));
-  });
-  fastify.patch("/api/v1/workspaces/:workspaceId/symptoms/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return healthService.updateSymptom(userId, workspaceId, id, updateSymptomInputSchema.parse(request.body));
-  });
-  fastify.delete("/api/v1/workspaces/:workspaceId/symptoms/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return deleteResponseSchema.parse({ deleted: await healthService.deleteSymptom(userId, workspaceId, id) });
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/doctor-questions", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.createDoctorQuestion(userId, workspaceId, createDoctorQuestionInputSchema.parse(request.body));
-  });
-  fastify.patch("/api/v1/workspaces/:workspaceId/doctor-questions/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return healthService.updateDoctorQuestion(userId, workspaceId, id, updateDoctorQuestionInputSchema.parse(request.body));
-  });
-  fastify.delete("/api/v1/workspaces/:workspaceId/doctor-questions/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return deleteResponseSchema.parse({ deleted: await healthService.deleteDoctorQuestion(userId, workspaceId, id) });
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/reports", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.createReport(userId, workspaceId, createReportFileInputSchema.parse(request.body));
-  });
-  fastify.patch("/api/v1/workspaces/:workspaceId/reports/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return healthService.updateReport(userId, workspaceId, id, updateReportFileInputSchema.parse(request.body));
-  });
-  fastify.delete("/api/v1/workspaces/:workspaceId/reports/:id", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    const { id } = idParamsSchema.parse(request.params);
-    return deleteResponseSchema.parse({ deleted: await healthService.deleteReport(userId, workspaceId, id) });
   });
 
   fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions", async (request) => {

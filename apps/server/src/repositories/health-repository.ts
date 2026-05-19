@@ -9,12 +9,7 @@ import type {
   CreateTimelineEntryInput,
   CreateWorkspaceInput,
   ExtractedMemoryProposal,
-  UpdateDoctorQuestionInput,
-  UpdateMedicationInput,
   UpdateMemoryProposalInput,
-  UpdateReportFileInput,
-  UpdateSymptomInput,
-  UpdateTimelineEntryInput,
   UpdateWorkspaceInput,
 } from "@health-conversation/contracts/health";
 import { db } from "@health-conversation/db";
@@ -184,33 +179,11 @@ export const healthRepository = {
     if (!row) throw notFound("Timeline entry not created");
     return toTimeline(row);
   },
-  async updateTimeline(ownerUserId: string, workspaceId: string, id: string, input: UpdateTimelineEntryInput) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const [row] = await db.update(timelineEntries).set(input).where(and(eq(timelineEntries.id, id), eq(timelineEntries.workspaceId, workspaceId))).returning();
-    if (!row) throw notFound("Timeline entry not found");
-    return toTimeline(row);
-  },
-  async deleteTimeline(ownerUserId: string, workspaceId: string, id: string) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const rows = await db.delete(timelineEntries).where(and(eq(timelineEntries.id, id), eq(timelineEntries.workspaceId, workspaceId))).returning({ id: timelineEntries.id });
-    return rows.length > 0;
-  },
 
   async createMedication(workspaceId: string, input: CreateMedicationInput) {
     const [row] = await db.insert(medications).values({ id: randomUUID(), workspaceId, ...withRefs(input) }).returning();
     if (!row) throw notFound("Medication not created");
     return toMedication(row);
-  },
-  async updateMedication(ownerUserId: string, workspaceId: string, id: string, input: UpdateMedicationInput) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const [row] = await db.update(medications).set(input).where(and(eq(medications.id, id), eq(medications.workspaceId, workspaceId))).returning();
-    if (!row) throw notFound("Medication not found");
-    return toMedication(row);
-  },
-  async deleteMedication(ownerUserId: string, workspaceId: string, id: string) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const rows = await db.delete(medications).where(and(eq(medications.id, id), eq(medications.workspaceId, workspaceId))).returning({ id: medications.id });
-    return rows.length > 0;
   },
 
   async createSymptom(workspaceId: string, input: CreateSymptomInput) {
@@ -218,33 +191,11 @@ export const healthRepository = {
     if (!row) throw notFound("Symptom not created");
     return toSymptom(row);
   },
-  async updateSymptom(ownerUserId: string, workspaceId: string, id: string, input: UpdateSymptomInput) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const [row] = await db.update(symptoms).set(input).where(and(eq(symptoms.id, id), eq(symptoms.workspaceId, workspaceId))).returning();
-    if (!row) throw notFound("Symptom not found");
-    return toSymptom(row);
-  },
-  async deleteSymptom(ownerUserId: string, workspaceId: string, id: string) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const rows = await db.delete(symptoms).where(and(eq(symptoms.id, id), eq(symptoms.workspaceId, workspaceId))).returning({ id: symptoms.id });
-    return rows.length > 0;
-  },
 
   async createDoctorQuestion(workspaceId: string, input: CreateDoctorQuestionInput) {
     const [row] = await db.insert(doctorQuestions).values({ id: randomUUID(), workspaceId, ...withRefs(input) }).returning();
     if (!row) throw notFound("Doctor question not created");
     return toQuestion(row);
-  },
-  async updateDoctorQuestion(ownerUserId: string, workspaceId: string, id: string, input: UpdateDoctorQuestionInput) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const [row] = await db.update(doctorQuestions).set(input).where(and(eq(doctorQuestions.id, id), eq(doctorQuestions.workspaceId, workspaceId))).returning();
-    if (!row) throw notFound("Doctor question not found");
-    return toQuestion(row);
-  },
-  async deleteDoctorQuestion(ownerUserId: string, workspaceId: string, id: string) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const rows = await db.delete(doctorQuestions).where(and(eq(doctorQuestions.id, id), eq(doctorQuestions.workspaceId, workspaceId))).returning({ id: doctorQuestions.id });
-    return rows.length > 0;
   },
 
   async createReport(workspaceId: string, input: CreateReportFileInput) {
@@ -253,17 +204,6 @@ export const healthRepository = {
     const [row] = await db.insert(reportFiles).values({ id: randomUUID(), workspaceId, ...input, reportType: input.reportType ?? null, reportDate: input.reportDate ?? null, summary: input.summary ?? null, sourceRefs }).returning();
     if (!row) throw notFound("Report not created");
     return toReport(row);
-  },
-  async updateReport(ownerUserId: string, workspaceId: string, id: string, input: UpdateReportFileInput) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const [row] = await db.update(reportFiles).set(input).where(and(eq(reportFiles.id, id), eq(reportFiles.workspaceId, workspaceId))).returning();
-    if (!row) throw notFound("Report not found");
-    return toReport(row);
-  },
-  async deleteReport(ownerUserId: string, workspaceId: string, id: string) {
-    await this.getOwnedChildWorkspace(ownerUserId, workspaceId);
-    const rows = await db.delete(reportFiles).where(and(eq(reportFiles.id, id), eq(reportFiles.workspaceId, workspaceId))).returning({ id: reportFiles.id });
-    return rows.length > 0;
   },
 
   async createChatSession(workspaceId: string, input: CreateChatSessionInput) {

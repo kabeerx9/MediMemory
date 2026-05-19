@@ -16,18 +16,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkspacesIndexRouteImport } from './routes/workspaces/index'
 import { Route as WorkspacesNewRouteImport } from './routes/workspaces/new'
 import { Route as WorkspacesWorkspaceIdRouteImport } from './routes/workspaces/$workspaceId'
-import { Route as WorkspacesWorkspaceIdTimelineRouteImport } from './routes/workspaces/$workspaceId/timeline'
-import { Route as WorkspacesWorkspaceIdSymptomsRouteImport } from './routes/workspaces/$workspaceId/symptoms'
-import { Route as WorkspacesWorkspaceIdStatusRouteImport } from './routes/workspaces/$workspaceId/status'
-import { Route as WorkspacesWorkspaceIdReportsRouteImport } from './routes/workspaces/$workspaceId/reports'
-import { Route as WorkspacesWorkspaceIdQuestionsRouteImport } from './routes/workspaces/$workspaceId/questions'
-import { Route as WorkspacesWorkspaceIdMedicationsRouteImport } from './routes/workspaces/$workspaceId/medications'
-import { Route as WorkspacesWorkspaceIdImportRouteImport } from './routes/workspaces/$workspaceId/import'
-import { Route as WorkspacesWorkspaceIdChatRouteImport } from './routes/workspaces/$workspaceId/chat'
 import { Route as WorkspacesWorkspaceIdAskRouteImport } from './routes/workspaces/$workspaceId/ask'
 import { Route as WorkspacesWorkspaceIdAddRouteImport } from './routes/workspaces/$workspaceId/add'
 import { Route as WorkspacesWorkspaceIdReviewProposalIdRouteImport } from './routes/workspaces/$workspaceId/review/$proposalId'
-import { Route as WorkspacesWorkspaceIdProposalsProposalIdRouteImport } from './routes/workspaces/$workspaceId/proposals/$proposalId'
 
 const WorkspacesRoute = WorkspacesRouteImport.update({
   id: '/workspaces',
@@ -64,54 +55,6 @@ const WorkspacesWorkspaceIdRoute = WorkspacesWorkspaceIdRouteImport.update({
   path: '/$workspaceId',
   getParentRoute: () => WorkspacesRoute,
 } as any)
-const WorkspacesWorkspaceIdTimelineRoute =
-  WorkspacesWorkspaceIdTimelineRouteImport.update({
-    id: '/timeline',
-    path: '/timeline',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdSymptomsRoute =
-  WorkspacesWorkspaceIdSymptomsRouteImport.update({
-    id: '/symptoms',
-    path: '/symptoms',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdStatusRoute =
-  WorkspacesWorkspaceIdStatusRouteImport.update({
-    id: '/status',
-    path: '/status',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdReportsRoute =
-  WorkspacesWorkspaceIdReportsRouteImport.update({
-    id: '/reports',
-    path: '/reports',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdQuestionsRoute =
-  WorkspacesWorkspaceIdQuestionsRouteImport.update({
-    id: '/questions',
-    path: '/questions',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdMedicationsRoute =
-  WorkspacesWorkspaceIdMedicationsRouteImport.update({
-    id: '/medications',
-    path: '/medications',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdImportRoute =
-  WorkspacesWorkspaceIdImportRouteImport.update({
-    id: '/import',
-    path: '/import',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
-const WorkspacesWorkspaceIdChatRoute =
-  WorkspacesWorkspaceIdChatRouteImport.update({
-    id: '/chat',
-    path: '/chat',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
 const WorkspacesWorkspaceIdAskRoute =
   WorkspacesWorkspaceIdAskRouteImport.update({
     id: '/ask',
@@ -130,12 +73,6 @@ const WorkspacesWorkspaceIdReviewProposalIdRoute =
     path: '/review/$proposalId',
     getParentRoute: () => WorkspacesWorkspaceIdRoute,
   } as any)
-const WorkspacesWorkspaceIdProposalsProposalIdRoute =
-  WorkspacesWorkspaceIdProposalsProposalIdRouteImport.update({
-    id: '/proposals/$proposalId',
-    path: '/proposals/$proposalId',
-    getParentRoute: () => WorkspacesWorkspaceIdRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -147,15 +84,6 @@ export interface FileRoutesByFullPath {
   '/workspaces/': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/add': typeof WorkspacesWorkspaceIdAddRoute
   '/workspaces/$workspaceId/ask': typeof WorkspacesWorkspaceIdAskRoute
-  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
-  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
-  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
-  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
-  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
-  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
-  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
-  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
-  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
   '/workspaces/$workspaceId/review/$proposalId': typeof WorkspacesWorkspaceIdReviewProposalIdRoute
 }
 export interface FileRoutesByTo {
@@ -167,15 +95,6 @@ export interface FileRoutesByTo {
   '/workspaces': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/add': typeof WorkspacesWorkspaceIdAddRoute
   '/workspaces/$workspaceId/ask': typeof WorkspacesWorkspaceIdAskRoute
-  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
-  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
-  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
-  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
-  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
-  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
-  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
-  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
-  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
   '/workspaces/$workspaceId/review/$proposalId': typeof WorkspacesWorkspaceIdReviewProposalIdRoute
 }
 export interface FileRoutesById {
@@ -189,15 +108,6 @@ export interface FileRoutesById {
   '/workspaces/': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/add': typeof WorkspacesWorkspaceIdAddRoute
   '/workspaces/$workspaceId/ask': typeof WorkspacesWorkspaceIdAskRoute
-  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
-  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
-  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
-  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
-  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
-  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
-  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
-  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
-  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
   '/workspaces/$workspaceId/review/$proposalId': typeof WorkspacesWorkspaceIdReviewProposalIdRoute
 }
 export interface FileRouteTypes {
@@ -212,15 +122,6 @@ export interface FileRouteTypes {
     | '/workspaces/'
     | '/workspaces/$workspaceId/add'
     | '/workspaces/$workspaceId/ask'
-    | '/workspaces/$workspaceId/chat'
-    | '/workspaces/$workspaceId/import'
-    | '/workspaces/$workspaceId/medications'
-    | '/workspaces/$workspaceId/questions'
-    | '/workspaces/$workspaceId/reports'
-    | '/workspaces/$workspaceId/status'
-    | '/workspaces/$workspaceId/symptoms'
-    | '/workspaces/$workspaceId/timeline'
-    | '/workspaces/$workspaceId/proposals/$proposalId'
     | '/workspaces/$workspaceId/review/$proposalId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -232,15 +133,6 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/workspaces/$workspaceId/add'
     | '/workspaces/$workspaceId/ask'
-    | '/workspaces/$workspaceId/chat'
-    | '/workspaces/$workspaceId/import'
-    | '/workspaces/$workspaceId/medications'
-    | '/workspaces/$workspaceId/questions'
-    | '/workspaces/$workspaceId/reports'
-    | '/workspaces/$workspaceId/status'
-    | '/workspaces/$workspaceId/symptoms'
-    | '/workspaces/$workspaceId/timeline'
-    | '/workspaces/$workspaceId/proposals/$proposalId'
     | '/workspaces/$workspaceId/review/$proposalId'
   id:
     | '__root__'
@@ -253,15 +145,6 @@ export interface FileRouteTypes {
     | '/workspaces/'
     | '/workspaces/$workspaceId/add'
     | '/workspaces/$workspaceId/ask'
-    | '/workspaces/$workspaceId/chat'
-    | '/workspaces/$workspaceId/import'
-    | '/workspaces/$workspaceId/medications'
-    | '/workspaces/$workspaceId/questions'
-    | '/workspaces/$workspaceId/reports'
-    | '/workspaces/$workspaceId/status'
-    | '/workspaces/$workspaceId/symptoms'
-    | '/workspaces/$workspaceId/timeline'
-    | '/workspaces/$workspaceId/proposals/$proposalId'
     | '/workspaces/$workspaceId/review/$proposalId'
   fileRoutesById: FileRoutesById
 }
@@ -323,62 +206,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesWorkspaceIdRouteImport
       parentRoute: typeof WorkspacesRoute
     }
-    '/workspaces/$workspaceId/timeline': {
-      id: '/workspaces/$workspaceId/timeline'
-      path: '/timeline'
-      fullPath: '/workspaces/$workspaceId/timeline'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdTimelineRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/symptoms': {
-      id: '/workspaces/$workspaceId/symptoms'
-      path: '/symptoms'
-      fullPath: '/workspaces/$workspaceId/symptoms'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdSymptomsRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/status': {
-      id: '/workspaces/$workspaceId/status'
-      path: '/status'
-      fullPath: '/workspaces/$workspaceId/status'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdStatusRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/reports': {
-      id: '/workspaces/$workspaceId/reports'
-      path: '/reports'
-      fullPath: '/workspaces/$workspaceId/reports'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdReportsRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/questions': {
-      id: '/workspaces/$workspaceId/questions'
-      path: '/questions'
-      fullPath: '/workspaces/$workspaceId/questions'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdQuestionsRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/medications': {
-      id: '/workspaces/$workspaceId/medications'
-      path: '/medications'
-      fullPath: '/workspaces/$workspaceId/medications'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdMedicationsRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/import': {
-      id: '/workspaces/$workspaceId/import'
-      path: '/import'
-      fullPath: '/workspaces/$workspaceId/import'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdImportRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
-    '/workspaces/$workspaceId/chat': {
-      id: '/workspaces/$workspaceId/chat'
-      path: '/chat'
-      fullPath: '/workspaces/$workspaceId/chat'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdChatRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
     '/workspaces/$workspaceId/ask': {
       id: '/workspaces/$workspaceId/ask'
       path: '/ask'
@@ -400,44 +227,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesWorkspaceIdReviewProposalIdRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdRoute
     }
-    '/workspaces/$workspaceId/proposals/$proposalId': {
-      id: '/workspaces/$workspaceId/proposals/$proposalId'
-      path: '/proposals/$proposalId'
-      fullPath: '/workspaces/$workspaceId/proposals/$proposalId'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdProposalsProposalIdRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRoute
-    }
   }
 }
 
 interface WorkspacesWorkspaceIdRouteChildren {
   WorkspacesWorkspaceIdAddRoute: typeof WorkspacesWorkspaceIdAddRoute
   WorkspacesWorkspaceIdAskRoute: typeof WorkspacesWorkspaceIdAskRoute
-  WorkspacesWorkspaceIdChatRoute: typeof WorkspacesWorkspaceIdChatRoute
-  WorkspacesWorkspaceIdImportRoute: typeof WorkspacesWorkspaceIdImportRoute
-  WorkspacesWorkspaceIdMedicationsRoute: typeof WorkspacesWorkspaceIdMedicationsRoute
-  WorkspacesWorkspaceIdQuestionsRoute: typeof WorkspacesWorkspaceIdQuestionsRoute
-  WorkspacesWorkspaceIdReportsRoute: typeof WorkspacesWorkspaceIdReportsRoute
-  WorkspacesWorkspaceIdStatusRoute: typeof WorkspacesWorkspaceIdStatusRoute
-  WorkspacesWorkspaceIdSymptomsRoute: typeof WorkspacesWorkspaceIdSymptomsRoute
-  WorkspacesWorkspaceIdTimelineRoute: typeof WorkspacesWorkspaceIdTimelineRoute
-  WorkspacesWorkspaceIdProposalsProposalIdRoute: typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
   WorkspacesWorkspaceIdReviewProposalIdRoute: typeof WorkspacesWorkspaceIdReviewProposalIdRoute
 }
 
 const WorkspacesWorkspaceIdRouteChildren: WorkspacesWorkspaceIdRouteChildren = {
   WorkspacesWorkspaceIdAddRoute: WorkspacesWorkspaceIdAddRoute,
   WorkspacesWorkspaceIdAskRoute: WorkspacesWorkspaceIdAskRoute,
-  WorkspacesWorkspaceIdChatRoute: WorkspacesWorkspaceIdChatRoute,
-  WorkspacesWorkspaceIdImportRoute: WorkspacesWorkspaceIdImportRoute,
-  WorkspacesWorkspaceIdMedicationsRoute: WorkspacesWorkspaceIdMedicationsRoute,
-  WorkspacesWorkspaceIdQuestionsRoute: WorkspacesWorkspaceIdQuestionsRoute,
-  WorkspacesWorkspaceIdReportsRoute: WorkspacesWorkspaceIdReportsRoute,
-  WorkspacesWorkspaceIdStatusRoute: WorkspacesWorkspaceIdStatusRoute,
-  WorkspacesWorkspaceIdSymptomsRoute: WorkspacesWorkspaceIdSymptomsRoute,
-  WorkspacesWorkspaceIdTimelineRoute: WorkspacesWorkspaceIdTimelineRoute,
-  WorkspacesWorkspaceIdProposalsProposalIdRoute:
-    WorkspacesWorkspaceIdProposalsProposalIdRoute,
   WorkspacesWorkspaceIdReviewProposalIdRoute:
     WorkspacesWorkspaceIdReviewProposalIdRoute,
 }

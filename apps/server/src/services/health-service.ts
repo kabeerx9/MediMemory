@@ -2,11 +2,6 @@ import type {
   CreateChatMessageInput,
   CreateChatSessionInput,
   CreateContextImportInput,
-  CreateDoctorQuestionInput,
-  CreateMedicationInput,
-  CreateReportFileInput,
-  CreateSymptomInput,
-  CreateTimelineEntryInput,
   CreateWorkspaceInput,
   SaveChatInput,
   TemporaryChatMemoryProposalInput,
@@ -33,41 +28,6 @@ export const healthService = {
   getWorkspaceDetail(userId: string, workspaceId: string) {
     return healthRepository.getWorkspaceDetail(userId, workspaceId);
   },
-
-  async createTimeline(userId: string, workspaceId: string, input: CreateTimelineEntryInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    return healthRepository.createTimeline(workspaceId, input);
-  },
-  updateTimeline: healthRepository.updateTimeline.bind(healthRepository),
-  deleteTimeline: healthRepository.deleteTimeline.bind(healthRepository),
-
-  async createMedication(userId: string, workspaceId: string, input: CreateMedicationInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    return healthRepository.createMedication(workspaceId, input);
-  },
-  updateMedication: healthRepository.updateMedication.bind(healthRepository),
-  deleteMedication: healthRepository.deleteMedication.bind(healthRepository),
-
-  async createSymptom(userId: string, workspaceId: string, input: CreateSymptomInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    return healthRepository.createSymptom(workspaceId, input);
-  },
-  updateSymptom: healthRepository.updateSymptom.bind(healthRepository),
-  deleteSymptom: healthRepository.deleteSymptom.bind(healthRepository),
-
-  async createDoctorQuestion(userId: string, workspaceId: string, input: CreateDoctorQuestionInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    return healthRepository.createDoctorQuestion(workspaceId, input);
-  },
-  updateDoctorQuestion: healthRepository.updateDoctorQuestion.bind(healthRepository),
-  deleteDoctorQuestion: healthRepository.deleteDoctorQuestion.bind(healthRepository),
-
-  async createReport(userId: string, workspaceId: string, input: CreateReportFileInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    return healthRepository.createReport(workspaceId, input);
-  },
-  updateReport: healthRepository.updateReport.bind(healthRepository),
-  deleteReport: healthRepository.deleteReport.bind(healthRepository),
 
   async createChatSession(userId: string, workspaceId: string, input: CreateChatSessionInput) {
     await healthRepository.getOwnedChildWorkspace(userId, workspaceId);

@@ -1,26 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity,
-  Calendar,
-  FileText,
-  HelpCircle,
-  LayoutDashboard,
+  BookOpenText,
   MessageSquare,
-  Pill,
-  Thermometer,
-  Upload,
+  Sparkles,
 } from "lucide-react";
 
 export const workspaceSections = [
-  { to: "/workspaces/$workspaceId", label: "Overview", icon: LayoutDashboard },
-  { to: "/workspaces/$workspaceId/status", label: "Current Status", icon: Activity },
-  { to: "/workspaces/$workspaceId/timeline", label: "Timeline", icon: Calendar },
-  { to: "/workspaces/$workspaceId/medications", label: "Medications", icon: Pill },
-  { to: "/workspaces/$workspaceId/symptoms", label: "Symptoms", icon: Thermometer },
-  { to: "/workspaces/$workspaceId/reports", label: "Reports", icon: FileText },
-  { to: "/workspaces/$workspaceId/questions", label: "Doctor Questions", icon: HelpCircle },
-  { to: "/workspaces/$workspaceId/chat", label: "Chat", icon: MessageSquare },
-  { to: "/workspaces/$workspaceId/import", label: "Import", icon: Upload },
+  { to: "/workspaces/$workspaceId", label: "Memory", icon: BookOpenText },
+  { to: "/workspaces/$workspaceId/add", label: "Add to Memory", icon: Sparkles },
+  { to: "/workspaces/$workspaceId/ask", label: "Ask", icon: MessageSquare },
 ] as const satisfies ReadonlyArray<{
   to: string;
   label: string;
@@ -28,7 +16,7 @@ export const workspaceSections = [
 }>;
 
 export function isWorkspaceChatRoute(pathname: string, workspaceId: string) {
-  return pathname === `/workspaces/${workspaceId}/chat`;
+  return pathname === `/workspaces/${workspaceId}/ask`;
 }
 
 export function isWorkspaceSectionActive(pathname: string, workspaceId: string, sectionTo: string) {

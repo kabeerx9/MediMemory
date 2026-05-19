@@ -1,12 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { ProposalPage } from "@/features/health/workspace-ui";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/workspaces/$workspaceId/proposals/$proposalId")({
-  component: RouteComponent,
+  beforeLoad: ({ params }) => {
+    redirect({ to: "/workspaces/$workspaceId/review/$proposalId", params, throw: true });
+  },
 });
-
-function RouteComponent() {
-  const { workspaceId, proposalId } = Route.useParams();
-  return <ProposalPage proposalId={proposalId} workspaceId={workspaceId} />;
-}

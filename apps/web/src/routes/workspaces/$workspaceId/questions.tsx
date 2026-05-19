@@ -1,11 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { QuestionPage, useWorkspaceRouteContext } from "@/features/health/workspace-ui";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/workspaces/$workspaceId/questions")({
-  component: RouteComponent,
+  beforeLoad: ({ params }) => {
+    redirect({ to: "/workspaces/$workspaceId", params, throw: true });
+  },
 });
-
-function RouteComponent() {
-  return <QuestionPage {...useWorkspaceRouteContext()} />;
-}

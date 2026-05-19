@@ -1,11 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { TimelinePage, useWorkspaceRouteContext } from "@/features/health/workspace-ui";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/workspaces/$workspaceId/timeline")({
-  component: RouteComponent,
+  beforeLoad: ({ params }) => {
+    redirect({ to: "/workspaces/$workspaceId", params, throw: true });
+  },
 });
-
-function RouteComponent() {
-  return <TimelinePage {...useWorkspaceRouteContext()} />;
-}

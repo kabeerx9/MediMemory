@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@health-conversation/u
 import { Input } from "@health-conversation/ui/components/input";
 import { Label } from "@health-conversation/ui/components/label";
 import { Textarea } from "@health-conversation/ui/components/textarea";
-import type { HealthWorkspace, MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
+import type { HealthWorkspace, MemoryProposal, WorkspaceDetail } from "@health-conversation/contracts/health";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@health-conversation/ui/components/sidebar";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { FileText, Plus, Save, Sparkles } from "lucide-react";
+import { Plus, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Eyebrow } from "@/components/brand";
@@ -127,7 +127,7 @@ export function NewWorkspacePage() {
         description: description || null,
       });
       toast.success("Workspace created");
-      await navigate({ to: "/workspaces/$workspaceId/status", params: { workspaceId: workspace.id } });
+      await navigate({ to: "/workspaces/$workspaceId/add", params: { workspaceId: workspace.id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create workspace");
     } finally {
@@ -162,72 +162,73 @@ export function WorkspaceOverview({ detail }: { detail: WorkspaceDetail }) {
   const statusItems = [
     { label: "Diagnosis", value: detail.workspace.diagnosis },
     { label: "Current status", value: detail.workspace.currentStatusSummary },
+    { label: "Current medications", value: detail.workspace.currentMedications },
+    { label: "Current symptoms", value: detail.workspace.currentSymptoms },
     { label: "Recent changes", value: detail.workspace.recentChanges },
+    { label: "Latest reports", value: detail.workspace.latestReports },
     { label: "Upcoming appointments", value: detail.workspace.upcomingAppointments },
     { label: "Open questions", value: detail.workspace.openQuestions },
   ];
-  const openQuestions = detail.doctorQuestions.filter((question) => question.status === "open").slice(0, 5);
-  const latestTimeline = detail.timeline.slice(0, 5);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <Eyebrow>Memory</Eyebrow>
+          <h2 className="font-display text-3xl font-semibold tracking-tight">Saved health memory</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            This is the organized memory built from approved updates. Add messy notes separately and let MediMemory sort them.
+          </p>
+        </div>
+        <Link
+          className="inline-flex h-8 items-center justify-center gap-1.5 bg-primary px-2.5 text-xs font-medium text-primary-foreground"
+          params={{ workspaceId: detail.workspace.id }}
+          to="/workspaces/$workspaceId/add"
+        >
+          <Sparkles className="size-4" />
+          Add to memory
+        </Link>
+      </div>
+
       <Card variant="feature">
-        <CardHeader><CardTitle>Overview</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+        <CardHeader><CardTitle>Current picture</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
           {statusItems.map((item) => (
-            <section key={item.label} className="border-b pb-3 last:border-b-0 last:pb-0">
-              <h2 className="text-sm font-medium">{item.label}</h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{item.value || "Nothing saved yet."}</p>
+            <section key={item.label} className="rounded-xl border border-border bg-card/70 p-4">
+              <h3 className="text-sm font-medium">{item.label}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.value || "Nothing saved yet."}</p>
             </section>
           ))}
         </CardContent>
       </Card>
-      <div className="space-y-4">
-        <Card variant="spotlight">
-          <CardHeader><CardTitle className="text-base">Needs attention</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {openQuestions.length === 0 ? <p className="text-sm text-muted-foreground">No open doctor questions.</p> : openQuestions.map((item) => <CompactItem key={item.id} title={item.question} body={item.context ?? ""} />)}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">Recent timeline</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {latestTimeline.length === 0 ? <p className="text-sm text-muted-foreground">No timeline entries yet.</p> : latestTimeline.map((item) => <CompactItem key={item.id} title={item.title} meta={item.entryDate} body={item.summary} />)}
-          </CardContent>
-        </Card>
-      </div>
+
+      <MemorySection
+        empty="No timeline entries yet."
+        items={detail.timeline.map((entry) => ({ title: entry.title, meta: entry.entryDate + " · " + entry.entryType, body: entry.summary }))}
+        title="Timeline"
+      />
+      <MemorySection
+        empty="No medications saved yet."
+        items={detail.medications.map((med) => ({ title: med.name, meta: [med.dose, med.status].filter(Boolean).join(" · "), body: med.notes ?? med.sideEffects ?? "" }))}
+        title="Medications"
+      />
+      <MemorySection
+        empty="No symptoms saved yet."
+        items={detail.symptoms.map((symptom) => ({ title: symptom.name, meta: symptom.severity ?? "", body: symptom.notes ?? symptom.pattern ?? "" }))}
+        title="Symptoms"
+      />
+      <MemorySection
+        empty="No reports saved yet."
+        items={detail.reports.map((report) => ({ title: report.filename, meta: [report.reportDate, report.reportType].filter(Boolean).join(" · "), body: report.summary ?? report.textContent.slice(0, 260) }))}
+        title="Reports"
+      />
+      <MemorySection
+        empty="No doctor questions saved yet."
+        items={detail.doctorQuestions.map((item) => ({ title: item.question, meta: item.status, body: item.context ?? item.answer ?? "" }))}
+        title="Doctor questions"
+      />
     </div>
   );
-}
-
-export function StatusPage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <StatusTab detail={detail} busy={busy} onSave={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.updateWorkspace(detail.workspace.id, input), success: "Status saved" })} />;
-}
-
-export function TimelinePage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <TimelineTab detail={detail} busy={busy} onAdd={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.createTimeline(detail.workspace.id, input), success: "Timeline entry added" })} />;
-}
-
-export function MedicationPage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <MedicationTab detail={detail} busy={busy} onAdd={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.createMedication(detail.workspace.id, input), success: "Medication added" })} />;
-}
-
-export function SymptomPage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <SymptomTab detail={detail} busy={busy} onAdd={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.createSymptom(detail.workspace.id, input), success: "Symptom added" })} />;
-}
-
-export function ReportPage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <ReportTab detail={detail} busy={busy} onAdd={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.createReport(detail.workspace.id, input), success: "Report text saved" })} />;
-}
-
-export function QuestionPage({ detail, refresh }: WorkspaceRouteContext) {
-  const [busy, setBusy] = useState(false);
-  return <QuestionTab detail={detail} busy={busy} onAdd={(input) => runAction({ workspaceId: detail.workspace.id, setBusy, refresh, action: () => healthApi.createDoctorQuestion(detail.workspace.id, input), success: "Question added" })} />;
 }
 
 export function ChatPage({ detail, refresh }: WorkspaceRouteContext) {
@@ -237,7 +238,7 @@ export function ChatPage({ detail, refresh }: WorkspaceRouteContext) {
       detail={detail}
       onProposal={(proposal) =>
         navigate({
-          to: "/workspaces/$workspaceId/proposals/$proposalId",
+          to: "/workspaces/$workspaceId/review/$proposalId",
           params: { workspaceId: detail.workspace.id, proposalId: proposal.id },
         })
       }
@@ -246,40 +247,83 @@ export function ChatPage({ detail, refresh }: WorkspaceRouteContext) {
   );
 }
 
-export function ImportPage({ detail, refresh }: WorkspaceRouteContext) {
+const addMemoryKinds = [
+  { id: "quick", label: "Quick update", title: "Quick memory update", placeholder: "Dad had more fatigue today. Appetite was lower. Doctor changed the steroid dose..." },
+  { id: "notes", label: "Doctor notes / transcript", title: "Doctor notes", placeholder: "Paste visit notes, WhatsApp updates, call transcripts, or anything you want organized..." },
+  { id: "report", label: "Report", title: "Report text", placeholder: "Paste the report text or important findings..." },
+] as const;
+
+type AddMemoryKind = (typeof addMemoryKinds)[number]["id"];
+
+export function AddToMemoryPage({ detail, refresh }: WorkspaceRouteContext) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [importTitle, setImportTitle] = useState("Transcript import");
-  const [importText, setImportText] = useState("");
+  const [kind, setKind] = useState<AddMemoryKind>("quick");
+  const selectedKind = addMemoryKinds.find((item) => item.id === kind) ?? addMemoryKinds[0];
+  const [title, setTitle] = useState<string>(selectedKind.title);
+  const [content, setContent] = useState("");
 
-  async function importTranscript(event: FormEvent<HTMLFormElement>) {
+  function selectKind(nextKind: AddMemoryKind) {
+    const next = addMemoryKinds.find((item) => item.id === nextKind) ?? addMemoryKinds[0];
+    setKind(next.id);
+    setTitle(next.title);
+  }
+
+  async function addToMemory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     try {
-      const next = await healthApi.importTranscript(detail.workspace.id, { title: importTitle, content: importText });
-      setImportText("");
+      const next = await healthApi.importTranscript(detail.workspace.id, { title, content });
+      setContent("");
       await refresh();
-      await navigate({ to: "/workspaces/$workspaceId/proposals/$proposalId", params: { workspaceId: detail.workspace.id, proposalId: next.id } });
+      await navigate({ to: "/workspaces/$workspaceId/review/$proposalId", params: { workspaceId: detail.workspace.id, proposalId: next.id } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not import transcript");
+      toast.error(err instanceof Error ? err.message : "Could not create memory review");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Import transcript or notes</CardTitle></CardHeader>
-      <CardContent>
-        <form className="space-y-3" onSubmit={importTranscript}>
-          <Field label="Title"><Input value={importTitle} onChange={(event) => setImportTitle(event.target.value)} /></Field>
-          <Field label="Transcript / notes"><TextArea value={importText} onChange={(event) => setImportText(event.target.value)} rows={14} required /></Field>
-          <Button disabled={busy || !importText.trim()} type="submit"><Sparkles className="mr-2 size-4" />Extract memory proposal</Button>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="space-y-1">
+        <Eyebrow>Add to memory</Eyebrow>
+        <h2 className="font-display text-3xl font-semibold tracking-tight">Drop in the messy update</h2>
+        <p className="text-sm text-muted-foreground">
+          Paste what happened. MediMemory will propose organized changes before anything is saved.
+        </p>
+      </div>
+
+      <Card variant="feature">
+        <CardContent className="pt-6">
+          <form className="space-y-5" onSubmit={addToMemory}>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {addMemoryKinds.map((item) => (
+                <button
+                  key={item.id}
+                  className={
+                    "rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors " +
+                    (item.id === kind ? "border-sentri-lime bg-sentri-lime/10 text-foreground" : "border-border bg-card/70 text-muted-foreground hover:bg-[var(--surface-hover)]")
+                  }
+                  onClick={() => selectKind(item.id)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <Field label="Title"><Input value={title} onChange={(event) => setTitle(event.target.value)} required /></Field>
+            <Field label="Update"><TextArea value={content} onChange={(event) => setContent(event.target.value)} placeholder={selectedKind.placeholder} rows={14} required /></Field>
+            <Button disabled={busy || !content.trim()} type="submit"><Sparkles className="mr-2 size-4" />Review memory changes</Button>
         </form>
       </CardContent>
     </Card>
+    </div>
   );
 }
+
+export const ImportPage = AddToMemoryPage;
 
 export function ProposalPage({ workspaceId, proposalId }: { workspaceId: string; proposalId: string }) {
   const navigate = useNavigate();
@@ -331,19 +375,6 @@ export function useWorkspaceRouteContext() {
   return context;
 }
 
-async function runAction({ action, refresh, setBusy, success }: { workspaceId: string; action: () => Promise<unknown>; refresh: () => Promise<void>; setBusy: (value: boolean) => void; success: string }) {
-  setBusy(true);
-  try {
-    await action();
-    await refresh();
-    toast.success(success);
-  } catch (err) {
-    toast.error(err instanceof Error ? err.message : "Action failed");
-  } finally {
-    setBusy(false);
-  }
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>;
 }
@@ -368,64 +399,110 @@ function CompactItem({ title, meta, body }: { title: string; meta?: string; body
   return <div className="rounded-md border p-3"><div className="font-medium">{title}</div>{meta ? <div className="text-xs text-muted-foreground">{meta}</div> : null}{body ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{body}</p> : null}</div>;
 }
 
-function StatusTab({ detail, busy, onSave }: { detail: WorkspaceDetail; busy: boolean; onSave: (input: Record<string, string | null>) => void }) {
-  const [form, setForm] = useState({
-    diagnosis: detail.workspace.diagnosis ?? "",
-    currentStatusSummary: detail.workspace.currentStatusSummary ?? "",
-    currentMedications: detail.workspace.currentMedications ?? "",
-    currentSymptoms: detail.workspace.currentSymptoms ?? "",
-    recentChanges: detail.workspace.recentChanges ?? "",
-    latestReports: detail.workspace.latestReports ?? "",
-    upcomingAppointments: detail.workspace.upcomingAppointments ?? "",
-    openQuestions: detail.workspace.openQuestions ?? "",
-  });
-  return <Card><CardHeader><CardTitle>Current Status</CardTitle></CardHeader><CardContent><form className="grid gap-3 lg:grid-cols-2" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
-    {Object.entries(form).map(([key, value]) => <Field key={key} label={labelize(key)}><TextArea value={value} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} rows={4} /></Field>)}
-    <div className="lg:col-span-2"><Button disabled={busy} type="submit"><Save className="mr-2 size-4" />Save current status</Button></div>
-  </form></CardContent></Card>;
-}
-
-function TimelineTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: boolean; onAdd: (input: { entryDate: string; entryType: "note"; title: string; summary: string }) => void }) {
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  return <TwoColumn title="Timeline" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ entryDate, entryType: "note", title, summary }); setTitle(""); setSummary(""); }}><Field label="Date"><Input value={entryDate} onChange={(event) => setEntryDate(event.target.value)} /></Field><Field label="Title"><Input value={title} onChange={(event) => setTitle(event.target.value)} required /></Field><Field label="Summary"><TextArea value={summary} onChange={(event) => setSummary(event.target.value)} required /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add timeline entry</Button></form>} items={detail.timeline.map((entry) => ({ title: entry.title, meta: entry.entryDate + " - " + entry.entryType, body: entry.summary }))} />;
-}
-
-function MedicationTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: boolean; onAdd: (input: { name: string; dose?: string | null; status: "current" }) => void }) {
-  const [name, setName] = useState("");
-  const [dose, setDose] = useState("");
-  return <TwoColumn title="Medications" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ name, dose: dose || null, status: "current" }); setName(""); setDose(""); }}><Field label="Medicine"><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field><Field label="Dose"><Input value={dose} onChange={(event) => setDose(event.target.value)} /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add medication</Button></form>} items={detail.medications.map((med) => ({ title: med.name, meta: [med.dose, med.status].filter(Boolean).join(" - "), body: med.notes ?? med.sideEffects ?? "" }))} />;
-}
-
-function SymptomTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: boolean; onAdd: (input: { name: string; severity?: string | null; notes?: string | null }) => void }) {
-  const [name, setName] = useState("");
-  const [severity, setSeverity] = useState("");
-  const [notes, setNotes] = useState("");
-  return <TwoColumn title="Symptoms" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ name, severity: severity || null, notes: notes || null }); setName(""); setSeverity(""); setNotes(""); }}><Field label="Symptom"><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field><Field label="Severity"><Input value={severity} onChange={(event) => setSeverity(event.target.value)} /></Field><Field label="Notes"><TextArea value={notes} onChange={(event) => setNotes(event.target.value)} /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add symptom</Button></form>} items={detail.symptoms.map((symptom) => ({ title: symptom.name, meta: symptom.severity ?? "", body: symptom.notes ?? symptom.pattern ?? "" }))} />;
-}
-
-function ReportTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: boolean; onAdd: (input: { filename: string; reportType?: string | null; reportDate?: string | null; textContent: string; summary?: string | null }) => void }) {
-  const [filename, setFilename] = useState("");
-  const [reportType, setReportType] = useState("");
-  const [reportDate, setReportDate] = useState("");
-  const [textContent, setTextContent] = useState("");
-  const [summary, setSummary] = useState("");
-  return <TwoColumn title="Reports" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ filename, reportType: reportType || null, reportDate: reportDate || null, textContent, summary: summary || null }); setFilename(""); setReportType(""); setReportDate(""); setTextContent(""); setSummary(""); }}><Field label="Filename"><Input value={filename} onChange={(event) => setFilename(event.target.value)} required /></Field><Field label="Report type"><Input value={reportType} onChange={(event) => setReportType(event.target.value)} /></Field><Field label="Report date"><Input value={reportDate} onChange={(event) => setReportDate(event.target.value)} /></Field><Field label="Summary"><TextArea value={summary} onChange={(event) => setSummary(event.target.value)} /></Field><Field label="Pasted report text"><TextArea value={textContent} onChange={(event) => setTextContent(event.target.value)} required rows={8} /></Field><Button disabled={busy} type="submit"><FileText className="mr-2 size-4" />Save report text</Button></form>} items={detail.reports.map((report) => ({ title: report.filename, meta: [report.reportDate, report.reportType].filter(Boolean).join(" - "), body: report.summary ?? report.textContent.slice(0, 260) }))} />;
-}
-
-function QuestionTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: boolean; onAdd: (input: { question: string; context?: string | null; status: "open" }) => void }) {
-  const [question, setQuestion] = useState("");
-  const [context, setContext] = useState("");
-  return <TwoColumn title="Doctor Questions" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ question, context: context || null, status: "open" }); setQuestion(""); setContext(""); }}><Field label="Question"><TextArea value={question} onChange={(event) => setQuestion(event.target.value)} required /></Field><Field label="Context"><TextArea value={context} onChange={(event) => setContext(event.target.value)} /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add question</Button></form>} items={detail.doctorQuestions.map((item) => ({ title: item.question, meta: item.status, body: item.context ?? item.answer ?? "" }))} />;
-}
-
-function TwoColumn({ title, form, items }: { title: string; form: React.ReactNode; items: Array<{ title: string; meta: string; body: string }> }) {
-  return <div className="grid gap-4 lg:grid-cols-[360px_1fr]"><Card><CardHeader><CardTitle>Add {title}</CardTitle></CardHeader><CardContent>{form}</CardContent></Card><Card><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent className="space-y-3">{items.length === 0 ? <p className="text-sm text-muted-foreground">Nothing saved yet.</p> : items.map((item, index) => <CompactItem key={item.title + index} title={item.title} meta={item.meta} body={item.body} />)}</CardContent></Card></div>;
+function MemorySection({ empty, items, title }: { empty: string; items: Array<{ title: string; meta: string; body: string }>; title: string }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : items.map((item, index) => <CompactItem key={item.title + index} title={item.title} meta={item.meta} body={item.body} />)}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ProposalReview({ proposal, busy, onChange, onApprove }: { proposal: MemoryProposal; busy: boolean; onChange: (proposal: MemoryProposal) => void; onApprove: (proposal: MemoryProposal) => void }) {
-  return <Card><CardHeader><CardTitle>Review memory proposal</CardTitle><p className="text-sm text-muted-foreground">Nothing is permanent until you approve it.</p></CardHeader><CardContent className="space-y-4"><Field label="Title"><Input value={proposal.title} onChange={(event) => onChange({ ...proposal, title: event.target.value })} /></Field><Field label="Summary"><TextArea value={proposal.summary} onChange={(event) => onChange({ ...proposal, summary: event.target.value })} /></Field><div className="grid gap-3 md:grid-cols-2"><Field label="Date"><Input value={proposal.proposedDate ?? ""} onChange={(event) => onChange({ ...proposal, proposedDate: event.target.value || null })} /></Field><Field label="Type"><Input value={proposal.proposalType} onChange={(event) => onChange({ ...proposal, proposalType: event.target.value })} /></Field></div><div className="space-y-2"><h3 className="font-medium">Proposed updates</h3>{proposal.items.map((item) => <label key={item.id} className="block rounded-md border p-3"><div className="flex items-start gap-3"><input checked={item.included} className="mt-1" onChange={(event) => onChange({ ...proposal, items: proposal.items.map((candidate) => candidate.id === item.id ? { ...candidate, included: event.target.checked } : candidate) })} type="checkbox" /><div className="min-w-0"><div className="text-sm font-medium">{item.targetType} - {item.operation}</div><pre className="mt-2 max-h-36 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(item.payload, null, 2)}</pre>{item.sourceExcerpt ? <p className="mt-2 text-xs text-muted-foreground">Source: {item.sourceExcerpt}</p> : null}</div></div></label>)}</div>{proposal.missingDetails.length > 0 ? <div><h3 className="font-medium">Missing details</h3><ul className="list-disc pl-5 text-sm text-muted-foreground">{proposal.missingDetails.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}{proposal.doctorQuestions.length > 0 ? <div><h3 className="font-medium">Doctor questions</h3><ul className="list-disc pl-5 text-sm text-muted-foreground">{proposal.doctorQuestions.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}<Button disabled={busy} onClick={() => onApprove(proposal)}><Save className="mr-2 size-4" />Approve and save memory</Button></CardContent></Card>;
+  return (
+    <div className="mx-auto max-w-4xl space-y-5">
+      <div className="space-y-1">
+        <Eyebrow>Review</Eyebrow>
+        <h2 className="font-display text-3xl font-semibold tracking-tight">Review memory changes</h2>
+        <p className="text-sm text-muted-foreground">Choose what should be saved. Nothing changes until you approve.</p>
+      </div>
+
+      <Card variant="feature">
+        <CardContent className="space-y-4 pt-6">
+          <Field label="Title"><Input value={proposal.title} onChange={(event) => onChange({ ...proposal, title: event.target.value })} /></Field>
+          <Field label="Summary"><TextArea value={proposal.summary} onChange={(event) => onChange({ ...proposal, summary: event.target.value })} rows={4} /></Field>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Date"><Input value={proposal.proposedDate ?? ""} onChange={(event) => onChange({ ...proposal, proposedDate: event.target.value || null })} /></Field>
+            <Field label="Kind"><Input value={proposal.proposalType} onChange={(event) => onChange({ ...proposal, proposalType: event.target.value })} /></Field>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Proposed changes</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {proposal.currentStatusPatch ? (
+            <div className="rounded-xl border border-border bg-card/70 p-4">
+              <div className="mb-3">
+                <div className="text-sm font-semibold">Current picture</div>
+                <div className="text-xs text-muted-foreground">Update memory summary</div>
+              </div>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                {Object.entries(proposal.currentStatusPatch).map(([key, value]) => (
+                  <div key={key} className="rounded-lg bg-muted/50 p-3">
+                    <dt className="text-xs font-medium uppercase text-muted-foreground">{labelize(key)}</dt>
+                    <dd className="mt-1 whitespace-pre-wrap text-foreground">{formatPayloadValue(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
+          {proposal.items.length === 0 ? <p className="text-sm text-muted-foreground">No structured changes were found.</p> : null}
+          {proposal.items.map((item) => (
+            <label key={item.id} className="block rounded-xl border border-border bg-card/70 p-4">
+              <div className="flex items-start gap-3">
+                <input
+                  checked={item.included}
+                  className="mt-1"
+                  onChange={(event) => onChange({ ...proposal, items: proposal.items.map((candidate) => candidate.id === item.id ? { ...candidate, included: event.target.checked } : candidate) })}
+                  type="checkbox"
+                />
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold">{targetLabel(item.targetType)}</div>
+                    <div className="text-xs text-muted-foreground">{item.operation === "create" ? "Add new memory" : "Update memory"}</div>
+                  </div>
+                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                    {Object.entries(item.payload).map(([key, value]) => (
+                      <div key={key} className="rounded-lg bg-muted/50 p-3">
+                        <dt className="text-xs font-medium uppercase text-muted-foreground">{labelize(key)}</dt>
+                        <dd className="mt-1 whitespace-pre-wrap text-foreground">{formatPayloadValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {item.sourceExcerpt ? <p className="rounded-lg border border-border p-3 text-xs text-muted-foreground">Source: {item.sourceExcerpt}</p> : null}
+                </div>
+              </div>
+            </label>
+          ))}
+        </CardContent>
+      </Card>
+
+      {proposal.missingDetails.length > 0 ? (
+        <Card>
+          <CardHeader><CardTitle>Missing details</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">{proposal.missingDetails.map((item) => <li key={item}>{item}</li>)}</ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {proposal.doctorQuestions.length > 0 ? (
+        <Card>
+          <CardHeader><CardTitle>Questions found</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">{proposal.doctorQuestions.map((item) => <li key={item}>{item}</li>)}</ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="sticky bottom-0 flex justify-end border-t border-border bg-background/90 py-4 backdrop-blur">
+        <Button disabled={busy} onClick={() => onApprove(proposal)}><Save className="mr-2 size-4" />Approve and save memory</Button>
+      </div>
+    </div>
+  );
 }
 
 function toProposalPatch(proposal: MemoryProposal) {
@@ -434,4 +511,23 @@ function toProposalPatch(proposal: MemoryProposal) {
 
 function labelize(value: string) {
   return value.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+}
+
+function targetLabel(value: MemoryProposal["items"][number]["targetType"]) {
+  const labels: Record<MemoryProposal["items"][number]["targetType"], string> = {
+    current_status: "Current picture",
+    doctor_question: "Doctor question",
+    medication: "Medication",
+    report: "Report",
+    symptom: "Symptom",
+    timeline: "Timeline",
+  };
+  return labels[value];
+}
+
+function formatPayloadValue(value: unknown) {
+  if (value == null) return "Not specified";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
 }

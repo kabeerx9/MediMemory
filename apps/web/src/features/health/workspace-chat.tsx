@@ -8,9 +8,9 @@ import { toast } from "sonner";
 import { healthApi } from "@/features/health/api";
 
 const STARTER_PROMPTS = [
-  "Summarize the current status for a doctor visit",
-  "What open questions should I ask at my next appointment?",
-  "I have a new symptom — help me log what matters",
+  "Summarize the current memory",
+  "What changed recently?",
+  "Help me understand the latest saved context",
 ] as const;
 
 export function WorkspaceChat({
@@ -127,7 +127,7 @@ export function WorkspaceChat({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background/60 px-4 py-2 backdrop-blur-sm lg:px-6">
         <p className="text-sm text-muted-foreground">
-          Temporary chat — nothing is saved to memory until you propose
+          Ask about the saved memory. Nothing changes unless you choose to save details.
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button disabled={busy} onClick={newChat} size="sm" type="button" variant="ghost">
@@ -140,7 +140,7 @@ export function WorkspaceChat({
           </Button>
           <Button disabled={busy || messages.length === 0} onClick={() => void propose()} size="sm" type="button" variant="secondary">
             <Sparkles className="size-3.5" />
-            Add to context
+            Save useful details
           </Button>
         </div>
       </div>

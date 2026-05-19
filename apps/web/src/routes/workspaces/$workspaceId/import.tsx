@@ -1,11 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { ImportPage, useWorkspaceRouteContext } from "@/features/health/workspace-ui";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/workspaces/$workspaceId/import")({
-  component: RouteComponent,
+  beforeLoad: ({ params }) => {
+    redirect({ to: "/workspaces/$workspaceId/add", params, throw: true });
+  },
 });
-
-function RouteComponent() {
-  return <ImportPage {...useWorkspaceRouteContext()} />;
-}

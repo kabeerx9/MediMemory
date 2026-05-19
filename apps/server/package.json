@@ -17,7 +17,9 @@
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "fastify": "^5.3.3",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@health-conversation/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@health-conversation/config": "workspace:*",

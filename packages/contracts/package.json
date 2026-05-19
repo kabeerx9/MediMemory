@@ -1,0 +1,22 @@
+{
+  "name": "@health-conversation/contracts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@health-conversation/config": "workspace:*",
+    "typescript": "^6"
+  }
+}

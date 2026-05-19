@@ -13,19 +13,22 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@health-conversation/env": "workspace:*",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.1",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@health-conversation/contracts": "workspace:*"
   },
   "devDependencies": {
     "@health-conversation/config": "workspace:*",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.31.8",
-    "typescript": "^6"
+    "typescript": "^6",
+    "tsx": "^4.19.2"
   }
 }

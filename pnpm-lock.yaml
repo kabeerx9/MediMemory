@@ -178,6 +178,9 @@ importers:
       '@health-conversation/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@health-conversation/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@health-conversation/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -190,6 +193,9 @@ importers:
       dotenv:
         specifier: 'catalog:'
         version: 17.4.2
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.2(@types/pg@8.20.0)(kysely@0.28.17)(pg@8.20.0)
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
@@ -215,6 +221,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@health-conversation/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@health-conversation/env':
         specifier: workspace:*
         version: link:../../packages/env
@@ -322,8 +331,24 @@ importers:
 
   packages/config: {}
 
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@health-conversation/config':
+        specifier: workspace:*
+        version: link:../config
+      typescript:
+        specifier: ^6
+        version: 6.0.3
+
   packages/db:
     dependencies:
+      '@health-conversation/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@health-conversation/env':
         specifier: workspace:*
         version: link:../env
@@ -349,6 +374,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.8
         version: 0.31.10
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.1
       typescript:
         specifier: ^6
         version: 6.0.3

@@ -49,3 +49,6 @@ coverage
 .cache
 tmp
 temp
+
+*.local-seed.json
+personal-seed*.json

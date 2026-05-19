@@ -14,11 +14,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "health-conversation",
+        title: "MediMemory",
       },
       {
         name: "description",
-        content: "health-conversation is a web application",
+        content: "MediMemory keeps temporary health chats separate from curated medical memory",
       },
     ],
     links: [

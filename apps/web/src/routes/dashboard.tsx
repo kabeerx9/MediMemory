@@ -57,7 +57,6 @@ function RouteComponent() {
   const refreshDetail = useCallback(async (workspaceId: string) => {
     const next = await healthApi.getWorkspace(workspaceId);
     setDetail(next);
-    setProposal(next.proposals.find((candidate) => candidate.status === "draft") ?? null);
   }, []);
 
   useEffect(() => {
@@ -107,10 +106,10 @@ function RouteComponent() {
     }
   }
 
-  if (loading) return <Shell title="Health memory">Loading...</Shell>;
+  if (loading) return <Shell title="MediMemory">Loading...</Shell>;
 
   return (
-    <Shell title="Health memory">
+    <Shell title="MediMemory">
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4">
           <Card>

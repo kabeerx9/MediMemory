@@ -1,10 +1,10 @@
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@health-conversation/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@health-conversation/ui/components/card";
 import { Input } from "@health-conversation/ui/components/input";
 import { Label } from "@health-conversation/ui/components/label";
-import type { MemoryProposal, WorkspaceDetail, HealthWorkspace } from "@health-conversation/contracts/health";
+import type { MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail, HealthWorkspace } from "@health-conversation/contracts/health";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { FileText, MessageSquarePlus, Plus, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -72,8 +72,6 @@ function RouteComponent() {
     void refreshDetail(selectedId).catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load workspace"));
   }, [refreshDetail, selectedId]);
 
-  const latestSessionId = useMemo(() => detail?.chatSessions[0]?.id ?? null, [detail]);
-
   async function runAction(action: () => Promise<void>) {
     if (!selectedId) return;
     setBusy(true);
@@ -107,14 +105,6 @@ function RouteComponent() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function ensureSession() {
-    if (!selectedId) throw new Error("Select a workspace first");
-    if (latestSessionId) return latestSessionId;
-    const sessionRow = await healthApi.createChatSession(selectedId, "Workspace chat");
-    await refreshDetail(selectedId);
-    return sessionRow.id;
   }
 
   if (loading) return <Shell title="Health memory">Loading...</Shell>;
@@ -182,7 +172,7 @@ function RouteComponent() {
               {activeTab === "symptoms" ? <SymptomTab detail={detail} busy={busy} onAdd={(input) => runAction(() => healthApi.createSymptom(detail.workspace.id, input).then(() => { toast.success("Symptom added"); }))} /> : null}
               {activeTab === "reports" ? <ReportTab detail={detail} busy={busy} onAdd={(input) => runAction(() => healthApi.createReport(detail.workspace.id, input).then(() => { toast.success("Report text saved"); }))} /> : null}
               {activeTab === "questions" ? <QuestionTab detail={detail} busy={busy} onAdd={(input) => runAction(() => healthApi.createDoctorQuestion(detail.workspace.id, input).then(() => { toast.success("Question added"); }))} /> : null}
-              {activeTab === "chat" ? <ChatTab detail={detail} busy={busy} latestSessionId={latestSessionId} ensureSession={ensureSession} onRefresh={() => refreshDetail(detail.workspace.id)} onProposal={setProposal} /> : null}
+              {activeTab === "chat" ? <ChatTab detail={detail} busy={busy} onRefresh={() => refreshDetail(detail.workspace.id)} onProposal={setProposal} /> : null}
             </>
           ) : (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Create or select a workspace to begin.</CardContent></Card>
@@ -258,15 +248,56 @@ function QuestionTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: b
   return <TwoColumn title="Doctor Questions" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ question, context: context || null, status: "open" }); setQuestion(""); setContext(""); }}><Field label="Question"><TextArea value={question} onChange={(event) => setQuestion(event.target.value)} required /></Field><Field label="Context"><TextArea value={context} onChange={(event) => setContext(event.target.value)} /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add question</Button></form>} items={detail.doctorQuestions.map((item) => ({ title: item.question, meta: item.status, body: item.context ?? item.answer ?? "" }))} />;
 }
 
-function ChatTab({ detail, busy, latestSessionId, ensureSession, onRefresh, onProposal }: { detail: WorkspaceDetail; busy: boolean; latestSessionId: string | null; ensureSession: () => Promise<string>; onRefresh: () => Promise<void>; onProposal: (proposal: MemoryProposal) => void }) {
+function ChatTab({ detail, busy, onRefresh, onProposal }: { detail: WorkspaceDetail; busy: boolean; onRefresh: () => Promise<void>; onProposal: (proposal: MemoryProposal) => void }) {
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<TemporaryChatMessageInput[]>([]);
   const [importTitle, setImportTitle] = useState("Transcript import");
   const [importText, setImportText] = useState("");
-  async function send(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const content = message.trim(); if (!content) return; setMessage(""); const sessionId = await ensureSession(); await healthApi.sendChatTurn(detail.workspace.id, sessionId, content); await onRefresh(); }
-  async function propose() { const sessionId = await ensureSession(); const next = await healthApi.proposeFromChat(detail.workspace.id, sessionId); onProposal(next); await onRefresh(); }
-  async function importTranscript(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const next = await healthApi.importTranscript(detail.workspace.id, { title: importTitle, content: importText }); setImportText(""); onProposal(next); await onRefresh(); }
-  const messages = latestSessionId ? detail.recentMessages.filter((item) => item.sessionId === latestSessionId) : detail.recentMessages;
-  return <div className="grid gap-4 xl:grid-cols-[1fr_360px]"><Card><CardHeader><CardTitle>Workspace Chat</CardTitle></CardHeader><CardContent className="space-y-4"><div className="max-h-[460px] space-y-3 overflow-y-auto rounded-md border p-3">{messages.length === 0 ? <p className="text-sm text-muted-foreground">Start a workspace chat. It stays temporary until you add it to context.</p> : messages.map((item) => <div key={item.id} className={"rounded-md px-3 py-2 text-sm " + (item.role === "user" ? "ml-8 bg-blue-50 text-blue-950 dark:bg-blue-950 dark:text-blue-50" : "mr-8 bg-muted")}><div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{item.role}</div><div className="whitespace-pre-wrap">{item.content}</div></div>)}</div><form className="space-y-3" onSubmit={send}><TextArea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ask about the case, prepare doctor questions, or paste an update..." rows={5} /><div className="flex flex-wrap gap-2"><Button disabled={busy || !message.trim()} type="submit"><MessageSquarePlus className="mr-2 size-4" />Send</Button><Button disabled={busy} onClick={propose} type="button" variant="outline"><Sparkles className="mr-2 size-4" />Add to Context</Button></div></form></CardContent></Card><Card><CardHeader><CardTitle>Import transcript</CardTitle></CardHeader><CardContent><form className="space-y-3" onSubmit={importTranscript}><Field label="Title"><Input value={importTitle} onChange={(event) => setImportTitle(event.target.value)} /></Field><Field label="Transcript / notes"><TextArea value={importText} onChange={(event) => setImportText(event.target.value)} rows={10} required /></Field><Button disabled={busy || !importText.trim()} type="submit"><Sparkles className="mr-2 size-4" />Extract memory proposal</Button></form></CardContent></Card></div>;
+
+  useEffect(() => {
+    setMessages([]);
+    setMessage("");
+  }, [detail.workspace.id]);
+
+  async function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const content = message.trim();
+    if (!content) return;
+    const nextMessages: TemporaryChatMessageInput[] = [...messages, { role: "user", content }];
+    setMessages(nextMessages);
+    setMessage("");
+    try {
+      const response = await healthApi.sendTemporaryChatTurn(detail.workspace.id, content, messages);
+      setMessages([...nextMessages, response.assistantMessage]);
+    } catch (err) {
+      setMessages(messages);
+      toast.error(err instanceof Error ? err.message : "Could not send message");
+    }
+  }
+
+  async function propose() {
+    if (messages.length === 0) return;
+    const next = await healthApi.proposeFromTemporaryChat(detail.workspace.id, "Temporary chat memory proposal", messages);
+    onProposal(next);
+    await onRefresh();
+  }
+
+  async function saveChat() {
+    if (messages.length === 0) return;
+    await healthApi.saveChat(detail.workspace.id, "Saved workspace chat", messages);
+    toast.success("Chat saved");
+    await onRefresh();
+  }
+
+  async function importTranscript(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = await healthApi.importTranscript(detail.workspace.id, { title: importTitle, content: importText });
+    setImportText("");
+    onProposal(next);
+    await onRefresh();
+  }
+
+  return <div className="grid gap-4 xl:grid-cols-[1fr_360px]"><Card><CardHeader><CardTitle>Workspace Chat</CardTitle></CardHeader><CardContent className="space-y-4"><div className="max-h-[460px] space-y-3 overflow-y-auto rounded-md border p-3">{messages.length === 0 ? <p className="text-sm text-muted-foreground">New temporary chat.</p> : messages.map((item, index) => <div key={index + item.role + item.content.slice(0, 12)} className={"rounded-md px-3 py-2 text-sm " + (item.role === "user" ? "ml-8 bg-blue-50 text-blue-950 dark:bg-blue-950 dark:text-blue-50" : "mr-8 bg-muted")}><div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{item.role}</div><div className="whitespace-pre-wrap">{item.content}</div></div>)}</div><form className="space-y-3" onSubmit={send}><TextArea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ask about the case, prepare doctor questions, or paste an update..." rows={5} /><div className="flex flex-wrap gap-2"><Button disabled={busy || !message.trim()} type="submit"><MessageSquarePlus className="mr-2 size-4" />Send</Button><Button disabled={busy || messages.length === 0} onClick={propose} type="button" variant="outline"><Sparkles className="mr-2 size-4" />Add to Context</Button><Button disabled={busy || messages.length === 0} onClick={saveChat} type="button" variant="outline"><Save className="mr-2 size-4" />Save Chat</Button><Button disabled={busy || messages.length === 0} onClick={() => setMessages([])} type="button" variant="outline"><Plus className="mr-2 size-4" />New Chat</Button></div></form></CardContent></Card><Card><CardHeader><CardTitle>Import transcript</CardTitle></CardHeader><CardContent><form className="space-y-3" onSubmit={importTranscript}><Field label="Title"><Input value={importTitle} onChange={(event) => setImportTitle(event.target.value)} /></Field><Field label="Transcript / notes"><TextArea value={importText} onChange={(event) => setImportText(event.target.value)} rows={10} required /></Field><Button disabled={busy || !importText.trim()} type="submit"><Sparkles className="mr-2 size-4" />Extract memory proposal</Button></form></CardContent></Card></div>;
 }
 
 function TwoColumn({ title, form, items }: { title: string; form: React.ReactNode; items: Array<{ title: string; meta: string; body: string }> }) {

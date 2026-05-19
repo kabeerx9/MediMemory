@@ -352,13 +352,14 @@ export const healthRepository = {
   async approveProposal(ownerUserId: string, proposalId: string) {
     const proposal = await this.findProposalForUser(ownerUserId, proposalId);
     const full = await this.getProposal(proposal.workspaceId, proposal.id);
+    if (full.status === "approved") return full;
     const sourceRefs = proposal.sourceId ? [{ sourceId: proposal.sourceId }] : [];
 
     for (const item of full.items.filter((candidate) => candidate.included)) {
       const payload = item.payload;
       const refs = item.sourceExcerpt && proposal.sourceId ? [{ sourceId: proposal.sourceId, excerpt: item.sourceExcerpt }] : sourceRefs;
       if (item.targetType === "timeline") {
-        await this.createTimeline(proposal.workspaceId, { entryDate: String(payload.entryDate ?? payload.date ?? full.proposedDate ?? new Date().toISOString().slice(0, 10)), entryType: String(payload.entryType ?? "note") as never, title: String(payload.title ?? full.title), summary: String(payload.summary ?? full.summary), details: payload.details == null ? null : String(payload.details), sourceRefs: refs });
+        await this.createTimeline(proposal.workspaceId, { entryDate: String(payload.entryDate ?? payload.date ?? full.proposedDate ?? new Date().toISOString().slice(0, 10)), entryType: normalizeTimelineEntryType(payload.entryType), title: String(payload.title ?? full.title), summary: String(payload.summary ?? full.summary), details: payload.details == null ? null : String(payload.details), sourceRefs: refs });
       } else if (item.targetType === "symptom") {
         await this.createSymptom(proposal.workspaceId, { name: String(payload.name ?? payload.symptom ?? full.title), startDate: payload.startDate == null ? null : String(payload.startDate), severity: payload.severity == null ? null : String(payload.severity), pattern: payload.pattern == null ? null : String(payload.pattern), possibleTrigger: payload.possibleTrigger == null ? null : String(payload.possibleTrigger), relatedMedication: payload.relatedMedication == null ? null : String(payload.relatedMedication), notes: payload.notes == null ? String(payload.summary ?? full.summary) : String(payload.notes), sourceRefs: refs });
       } else if (item.targetType === "medication") {
@@ -386,6 +387,13 @@ export const healthRepository = {
     return workspace;
   },
 };
+
+function normalizeTimelineEntryType(value: unknown) {
+  const allowed = ["diagnosis_update", "symptom_update", "medication_change", "report", "doctor_visit", "appointment", "decision", "treatment", "lab_result", "note"] as const;
+  if (typeof value === "string" && (allowed as readonly string[]).includes(value)) return value as (typeof allowed)[number];
+  if (value === "test" || value === "ecg" || value === "scan") return "report";
+  return "note";
+}
 
 function normalizeStatusPatch(payload: Record<string, unknown>) {
   const allowed = ["currentStatusSummary", "currentMedications", "currentSymptoms", "recentChanges", "latestReports", "upcomingAppointments", "openQuestions", "diagnosis", "description"] as const;

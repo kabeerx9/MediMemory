@@ -1,10 +1,10 @@
-import type { WorkspaceDetail } from "@health-conversation/contracts/health";
+import type { TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
 import { env } from "@health-conversation/env/server";
 
 export const chatResponseService = {
-  async answer(input: { workspace: WorkspaceDetail; message: string }) {
+  async answer(input: { workspace: WorkspaceDetail; message: string; messages?: TemporaryChatMessageInput[] }) {
     if (!env.OPENAI_API_KEY) {
-      return "I saved your message. OPENAI_API_KEY is not configured yet, so I cannot generate a full AI answer. I can still help organize this into memory using the review flow.";
+      return "I received your message. OPENAI_API_KEY is not configured yet, so I cannot generate a full AI answer. I can still help organize this into memory using the review flow.";
     }
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -17,7 +17,7 @@ export const chatResponseService = {
         model: env.OPENAI_MODEL,
         input: [
           { role: "system", content: systemPrompt() },
-          { role: "user", content: buildPrompt(input.workspace, input.message) },
+          { role: "user", content: buildPrompt(input.workspace, input.message, input.messages ?? []) },
         ],
       }),
     });
@@ -42,13 +42,14 @@ function systemPrompt() {
   ].join("\n");
 }
 
-function buildPrompt(workspace: WorkspaceDetail, message: string) {
+function buildPrompt(workspace: WorkspaceDetail, message: string, messages: TemporaryChatMessageInput[]) {
   return JSON.stringify({
     currentStatus: workspace.workspace,
     recentTimeline: workspace.timeline.slice(0, 8).map((entry) => ({ date: entry.entryDate, type: entry.entryType, title: entry.title, summary: entry.summary })),
     medications: workspace.medications.slice(0, 10).map((med) => ({ name: med.name, dose: med.dose, status: med.status, notes: med.notes })),
     symptoms: workspace.symptoms.slice(0, 10).map((symptom) => ({ name: symptom.name, severity: symptom.severity, pattern: symptom.pattern, notes: symptom.notes })),
     openDoctorQuestions: workspace.doctorQuestions.filter((question) => question.status === "open").slice(0, 10).map((question) => question.question),
+    temporaryChatSoFar: messages.slice(-12).map((entry) => ({ role: entry.role, content: entry.content })),
     userMessage: message,
   });
 }

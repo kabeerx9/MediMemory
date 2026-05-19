@@ -229,6 +229,23 @@ export const createChatMessageInputSchema = z.object({
   content: z.string().trim().min(1).max(30000),
 });
 
+export const temporaryChatMessageInputSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().trim().min(1).max(30000),
+});
+export const temporaryChatTurnInputSchema = z.object({
+  message: z.string().trim().min(1).max(30000),
+  messages: z.array(temporaryChatMessageInputSchema).max(80).default([]),
+});
+export const saveChatInputSchema = z.object({
+  title: z.string().trim().max(180).nullable().optional(),
+  messages: z.array(temporaryChatMessageInputSchema).min(1).max(200),
+});
+export const temporaryChatMemoryProposalInputSchema = z.object({
+  title: z.string().trim().min(1).max(180).default("Temporary chat memory proposal"),
+  messages: z.array(temporaryChatMessageInputSchema).min(1).max(200),
+});
+
 export const proposalItemPayloadSchema = z.record(z.string(), z.unknown());
 export const memoryProposalItemSchema = z.object({
   id: z.uuid(),
@@ -345,6 +362,10 @@ export type ChatSession = z.infer<typeof chatSessionSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type CreateChatSessionInput = z.infer<typeof createChatSessionInputSchema>;
 export type CreateChatMessageInput = z.infer<typeof createChatMessageInputSchema>;
+export type TemporaryChatMessageInput = z.infer<typeof temporaryChatMessageInputSchema>;
+export type TemporaryChatTurnInput = z.infer<typeof temporaryChatTurnInputSchema>;
+export type SaveChatInput = z.infer<typeof saveChatInputSchema>;
+export type TemporaryChatMemoryProposalInput = z.infer<typeof temporaryChatMemoryProposalInputSchema>;
 export type MemoryProposal = z.infer<typeof memoryProposalSchema>;
 export type ExtractedMemoryProposal = z.infer<typeof extractedMemoryProposalSchema>;
 export type UpdateMemoryProposalInput = z.infer<typeof updateMemoryProposalInputSchema>;

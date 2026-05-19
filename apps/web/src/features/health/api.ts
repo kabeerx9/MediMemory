@@ -8,6 +8,7 @@ import type {
   CreateTimelineEntryInput,
   CreateWorkspaceInput,
   MemoryProposal,
+  TemporaryChatMessageInput,
   UpdateMemoryProposalInput,
   UpdateWorkspaceInput,
   WorkspaceDetail,
@@ -15,7 +16,7 @@ import type {
 } from "@health-conversation/contracts/health";
 
 type WorkspacesResponse = { workspaces: HealthWorkspace[] };
-type ChatTurnResponse = { userMessage: unknown; assistantMessage: unknown };
+type ChatTurnResponse = { assistantMessage: { role: "assistant"; content: string } };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(env.VITE_SERVER_URL + path, {
@@ -46,6 +47,9 @@ export const healthApi = {
   createReport: (workspaceId: string, input: CreateReportFileInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/reports", { method: "POST", body: JSON.stringify(input) }),
   createDoctorQuestion: (workspaceId: string, input: CreateDoctorQuestionInput) => apiFetch("/api/v1/workspaces/" + workspaceId + "/doctor-questions", { method: "POST", body: JSON.stringify(input) }),
   createChatSession: (workspaceId: string, title?: string | null) => apiFetch<{ id: string }>("/api/v1/workspaces/" + workspaceId + "/chat/sessions", { method: "POST", body: JSON.stringify({ title }) }),
+  sendTemporaryChatTurn: (workspaceId: string, message: string, messages: TemporaryChatMessageInput[]) => apiFetch<ChatTurnResponse>("/api/v1/workspaces/" + workspaceId + "/chat/respond", { method: "POST", body: JSON.stringify({ message, messages }) }),
+  saveChat: (workspaceId: string, title: string | null, messages: TemporaryChatMessageInput[]) => apiFetch<{ id: string }>("/api/v1/workspaces/" + workspaceId + "/chat/save", { method: "POST", body: JSON.stringify({ title, messages }) }),
+  proposeFromTemporaryChat: (workspaceId: string, title: string, messages: TemporaryChatMessageInput[]) => apiFetch<MemoryProposal>("/api/v1/workspaces/" + workspaceId + "/chat/propose-memory", { method: "POST", body: JSON.stringify({ title, messages }) }),
   sendChatTurn: (workspaceId: string, sessionId: string, content: string) => apiFetch<ChatTurnResponse>("/api/v1/workspaces/" + workspaceId + "/chat/sessions/" + sessionId + "/respond", { method: "POST", body: JSON.stringify({ role: "user", content }) }),
   proposeFromChat: (workspaceId: string, sessionId: string) => apiFetch<MemoryProposal>("/api/v1/workspaces/" + workspaceId + "/chat/sessions/" + sessionId + "/propose-memory", { method: "POST" }),
   importTranscript: (workspaceId: string, input: CreateContextImportInput) => apiFetch<MemoryProposal>("/api/v1/workspaces/" + workspaceId + "/context-imports", { method: "POST", body: JSON.stringify(input) }),

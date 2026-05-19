@@ -1,6 +1,46 @@
 import { extractedMemoryProposalSchema, type ExtractedMemoryProposal, type WorkspaceDetail } from "@health-conversation/contracts/health";
 import { env } from "@health-conversation/env/server";
 
+const payloadProperties = {
+  entryDate: { type: ["string", "null"] },
+  date: { type: ["string", "null"] },
+  entryType: { type: ["string", "null"], enum: ["diagnosis_update", "symptom_update", "medication_change", "report", "doctor_visit", "appointment", "decision", "treatment", "lab_result", "note", null] },
+  title: { type: ["string", "null"] },
+  summary: { type: ["string", "null"] },
+  details: { type: ["string", "null"] },
+  name: { type: ["string", "null"] },
+  symptom: { type: ["string", "null"] },
+  startDate: { type: ["string", "null"] },
+  severity: { type: ["string", "null"] },
+  pattern: { type: ["string", "null"] },
+  possibleTrigger: { type: ["string", "null"] },
+  relatedMedication: { type: ["string", "null"] },
+  notes: { type: ["string", "null"] },
+  medication: { type: ["string", "null"] },
+  dose: { type: ["string", "null"] },
+  status: { type: ["string", "null"] },
+  stopDate: { type: ["string", "null"] },
+  reasonStarted: { type: ["string", "null"] },
+  reasonStopped: { type: ["string", "null"] },
+  sideEffects: { type: ["string", "null"] },
+  question: { type: ["string", "null"] },
+  context: { type: ["string", "null"] },
+  filename: { type: ["string", "null"] },
+  reportType: { type: ["string", "null"] },
+  reportDate: { type: ["string", "null"] },
+  textContent: { type: ["string", "null"] },
+} as const;
+
+const currentStatusPatchProperties = {
+  currentStatusSummary: { type: ["string", "null"] },
+  currentMedications: { type: ["string", "null"] },
+  currentSymptoms: { type: ["string", "null"] },
+  recentChanges: { type: ["string", "null"] },
+  latestReports: { type: ["string", "null"] },
+  upcomingAppointments: { type: ["string", "null"] },
+  openQuestions: { type: ["string", "null"] },
+} as const;
+
 const proposalJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -18,7 +58,12 @@ const proposalJsonSchema = {
         properties: {
           targetType: { type: "string", enum: ["timeline", "symptom", "medication", "doctor_question", "report", "current_status"] },
           operation: { type: "string", enum: ["create", "update"] },
-          payload: { type: "object", additionalProperties: true },
+          payload: {
+            type: "object",
+            additionalProperties: false,
+            properties: payloadProperties,
+            required: Object.keys(payloadProperties),
+          },
           sourceExcerpt: { type: ["string", "null"] },
           confidence: { type: ["number", "null"] },
         },
@@ -27,7 +72,12 @@ const proposalJsonSchema = {
     },
     missingDetails: { type: "array", items: { type: "string" } },
     doctorQuestions: { type: "array", items: { type: "string" } },
-    currentStatusPatch: { type: ["object", "null"], additionalProperties: true },
+    currentStatusPatch: {
+      type: ["object", "null"],
+      additionalProperties: false,
+      properties: currentStatusPatchProperties,
+      required: Object.keys(currentStatusPatchProperties),
+    },
   },
   required: ["shouldSave", "proposalType", "date", "title", "summary", "items", "missingDetails", "doctorQuestions", "currentStatusPatch"],
 };
@@ -78,7 +128,7 @@ function systemPrompt() {
     "Save only confirmed health facts, dates, medication changes, symptoms, report findings, doctor questions, and missing details.",
     "Do not save anxiety, speculation, generic medical explanations, or duplicate questions.",
     "Use source-backed, short, editable updates. If the content has no durable health facts, set shouldSave=false and return no items.",
-    "Payloads must use simple keys that match the target type, for example timeline: entryDate, entryType, title, summary, details; symptom: name, startDate, severity, pattern, notes; medication: name, dose, status, startDate, stopDate, sideEffects, notes; doctor_question: question, context; report: filename, reportType, reportDate, textContent, summary; current_status: currentStatusSummary, currentMedications, currentSymptoms, recentChanges, latestReports, upcomingAppointments, openQuestions.",
+    "Payloads must use simple keys that match the target type, for example timeline: entryDate, entryType, title, summary, details. entryType must be one of diagnosis_update, symptom_update, medication_change, report, doctor_visit, appointment, decision, treatment, lab_result, note; symptom: name, startDate, severity, pattern, notes; medication: name, dose, status, startDate, stopDate, sideEffects, notes; doctor_question: question, context; report: filename, reportType, reportDate, textContent, summary; current_status: currentStatusSummary, currentMedications, currentSymptoms, recentChanges, latestReports, upcomingAppointments, openQuestions.",
   ].join("\n");
 }
 
@@ -104,7 +154,7 @@ function buildUserPrompt(workspace: WorkspaceDetail, text: string) {
 }
 
 function fallbackProposal(sourceTitle: string, text: string): ExtractedMemoryProposal {
-  const clean = text.replace(/s+/g, " ").trim();
+  const clean = text.replace(/\s+/g, " ").trim();
   const summary = clean.length > 450 ? clean.slice(0, 447) + "..." : clean;
   return {
     shouldSave: true,

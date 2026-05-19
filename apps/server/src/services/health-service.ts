@@ -8,6 +8,9 @@ import type {
   CreateSymptomInput,
   CreateTimelineEntryInput,
   CreateWorkspaceInput,
+  SaveChatInput,
+  TemporaryChatMemoryProposalInput,
+  TemporaryChatTurnInput,
   UpdateMemoryProposalInput,
   UpdateWorkspaceInput,
 } from "@health-conversation/contracts/health";
@@ -88,6 +91,34 @@ export const healthService = {
     const content = await chatResponseService.answer({ workspace: detail, message: input.content });
     const assistantMessage = await healthRepository.createChatMessage(workspaceId, sessionId, { role: "assistant", content });
     return { userMessage, assistantMessage };
+  },
+
+  async sendTemporaryChatTurn(userId: string, workspaceId: string, input: TemporaryChatTurnInput) {
+    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
+    const content = await chatResponseService.answer({ workspace: detail, message: input.message, messages: input.messages });
+    return { assistantMessage: { role: "assistant" as const, content } };
+  },
+
+  async saveChat(userId: string, workspaceId: string, input: SaveChatInput) {
+    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
+    const session = await healthRepository.createChatSession(workspaceId, { title: input.title ?? "Saved chat" });
+    for (const message of input.messages) {
+      await healthRepository.createChatMessage(workspaceId, session.id, message);
+    }
+    return session;
+  },
+
+  async proposeFromTemporaryChat(userId: string, workspaceId: string, input: TemporaryChatMemoryProposalInput) {
+    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
+    const transcript = input.messages.map((message) => message.role.toUpperCase() + ": " + message.content).join("\n\n");
+    const source = await healthRepository.createSource(workspaceId, {
+      type: "chat_message",
+      title: input.title,
+      content: null,
+      metadata: { temporary: true, messageCount: input.messages.length },
+    });
+    const extracted = await memoryExtractionService.extractFromText({ workspace: detail, sourceTitle: input.title, text: transcript });
+    return healthRepository.createProposal(workspaceId, source.id, extracted);
   },
 
   async importTranscript(userId: string, workspaceId: string, input: CreateContextImportInput) {

@@ -8,6 +8,9 @@ import {
   createReportFileInputSchema,
   createSymptomInputSchema,
   createTimelineEntryInputSchema,
+  saveChatInputSchema,
+  temporaryChatMemoryProposalInputSchema,
+  temporaryChatTurnInputSchema,
   createWorkspaceInputSchema,
   deleteResponseSchema,
   idParamsSchema,
@@ -145,6 +148,24 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
     return healthService.createChatSession(userId, workspaceId, createChatSessionInputSchema.parse(request.body));
+  });
+
+  fastify.post("/api/v1/workspaces/:workspaceId/chat/respond", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    return healthService.sendTemporaryChatTurn(userId, workspaceId, temporaryChatTurnInputSchema.parse(request.body));
+  });
+
+  fastify.post("/api/v1/workspaces/:workspaceId/chat/save", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    return healthService.saveChat(userId, workspaceId, saveChatInputSchema.parse(request.body));
+  });
+
+  fastify.post("/api/v1/workspaces/:workspaceId/chat/propose-memory", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    return healthService.proposeFromTemporaryChat(userId, workspaceId, temporaryChatMemoryProposalInputSchema.parse(request.body));
   });
 
   fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions/:sessionId/messages", async (request) => {

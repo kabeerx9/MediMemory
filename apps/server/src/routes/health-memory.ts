@@ -198,6 +198,12 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     return healthService.updateProposal(userId, proposalId, updateMemoryProposalInputSchema.parse(request.body));
   });
 
+  fastify.get("/api/v1/memory-proposals/:proposalId", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { proposalId } = proposalParamsSchema.parse(request.params);
+    return healthService.getProposal(userId, proposalId);
+  });
+
   fastify.post("/api/v1/memory-proposals/:proposalId/approve", async (request) => {
     const userId = await getRequiredUserId(request);
     const { proposalId } = proposalParamsSchema.parse(request.params);

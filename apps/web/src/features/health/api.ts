@@ -53,6 +53,7 @@ export const healthApi = {
   sendChatTurn: (workspaceId: string, sessionId: string, content: string) => apiFetch<ChatTurnResponse>("/api/v1/workspaces/" + workspaceId + "/chat/sessions/" + sessionId + "/respond", { method: "POST", body: JSON.stringify({ role: "user", content }) }),
   proposeFromChat: (workspaceId: string, sessionId: string) => apiFetch<MemoryProposal>("/api/v1/workspaces/" + workspaceId + "/chat/sessions/" + sessionId + "/propose-memory", { method: "POST" }),
   importTranscript: (workspaceId: string, input: CreateContextImportInput) => apiFetch<MemoryProposal>("/api/v1/workspaces/" + workspaceId + "/context-imports", { method: "POST", body: JSON.stringify(input) }),
+  getProposal: (proposalId: string) => apiFetch<MemoryProposal>("/api/v1/memory-proposals/" + proposalId),
   updateProposal: (proposalId: string, input: UpdateMemoryProposalInput) => apiFetch<MemoryProposal>("/api/v1/memory-proposals/" + proposalId, { method: "PATCH", body: JSON.stringify(input) }),
   approveProposal: (proposalId: string) => apiFetch<MemoryProposal>("/api/v1/memory-proposals/" + proposalId + "/approve", { method: "POST" }),
 };

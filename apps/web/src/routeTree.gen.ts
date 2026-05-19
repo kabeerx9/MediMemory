@@ -9,10 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspacesRouteImport } from './routes/workspaces'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WorkspacesNewRouteImport } from './routes/workspaces/new'
+import { Route as WorkspacesWorkspaceIdRouteImport } from './routes/workspaces/$workspaceId'
+import { Route as WorkspacesWorkspaceIdTimelineRouteImport } from './routes/workspaces/$workspaceId/timeline'
+import { Route as WorkspacesWorkspaceIdSymptomsRouteImport } from './routes/workspaces/$workspaceId/symptoms'
+import { Route as WorkspacesWorkspaceIdStatusRouteImport } from './routes/workspaces/$workspaceId/status'
+import { Route as WorkspacesWorkspaceIdReportsRouteImport } from './routes/workspaces/$workspaceId/reports'
+import { Route as WorkspacesWorkspaceIdQuestionsRouteImport } from './routes/workspaces/$workspaceId/questions'
+import { Route as WorkspacesWorkspaceIdMedicationsRouteImport } from './routes/workspaces/$workspaceId/medications'
+import { Route as WorkspacesWorkspaceIdImportRouteImport } from './routes/workspaces/$workspaceId/import'
+import { Route as WorkspacesWorkspaceIdChatRouteImport } from './routes/workspaces/$workspaceId/chat'
+import { Route as WorkspacesWorkspaceIdProposalsProposalIdRouteImport } from './routes/workspaces/$workspaceId/proposals/$proposalId'
 
+const WorkspacesRoute = WorkspacesRouteImport.update({
+  id: '/workspaces',
+  path: '/workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -28,39 +45,193 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspacesNewRoute = WorkspacesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => WorkspacesRoute,
+} as any)
+const WorkspacesWorkspaceIdRoute = WorkspacesWorkspaceIdRouteImport.update({
+  id: '/$workspaceId',
+  path: '/$workspaceId',
+  getParentRoute: () => WorkspacesRoute,
+} as any)
+const WorkspacesWorkspaceIdTimelineRoute =
+  WorkspacesWorkspaceIdTimelineRouteImport.update({
+    id: '/timeline',
+    path: '/timeline',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdSymptomsRoute =
+  WorkspacesWorkspaceIdSymptomsRouteImport.update({
+    id: '/symptoms',
+    path: '/symptoms',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdStatusRoute =
+  WorkspacesWorkspaceIdStatusRouteImport.update({
+    id: '/status',
+    path: '/status',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdReportsRoute =
+  WorkspacesWorkspaceIdReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdQuestionsRoute =
+  WorkspacesWorkspaceIdQuestionsRouteImport.update({
+    id: '/questions',
+    path: '/questions',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdMedicationsRoute =
+  WorkspacesWorkspaceIdMedicationsRouteImport.update({
+    id: '/medications',
+    path: '/medications',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdImportRoute =
+  WorkspacesWorkspaceIdImportRouteImport.update({
+    id: '/import',
+    path: '/import',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdChatRoute =
+  WorkspacesWorkspaceIdChatRouteImport.update({
+    id: '/chat',
+    path: '/chat',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdProposalsProposalIdRoute =
+  WorkspacesWorkspaceIdProposalsProposalIdRouteImport.update({
+    id: '/proposals/$proposalId',
+    path: '/proposals/$proposalId',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/workspaces': typeof WorkspacesRouteWithChildren
+  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteWithChildren
+  '/workspaces/new': typeof WorkspacesNewRoute
+  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
+  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
+  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
+  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
+  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
+  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
+  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/workspaces': typeof WorkspacesRouteWithChildren
+  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteWithChildren
+  '/workspaces/new': typeof WorkspacesNewRoute
+  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
+  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
+  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
+  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
+  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
+  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
+  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/workspaces': typeof WorkspacesRouteWithChildren
+  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteWithChildren
+  '/workspaces/new': typeof WorkspacesNewRoute
+  '/workspaces/$workspaceId/chat': typeof WorkspacesWorkspaceIdChatRoute
+  '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/medications': typeof WorkspacesWorkspaceIdMedicationsRoute
+  '/workspaces/$workspaceId/questions': typeof WorkspacesWorkspaceIdQuestionsRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
+  '/workspaces/$workspaceId/status': typeof WorkspacesWorkspaceIdStatusRoute
+  '/workspaces/$workspaceId/symptoms': typeof WorkspacesWorkspaceIdSymptomsRoute
+  '/workspaces/$workspaceId/timeline': typeof WorkspacesWorkspaceIdTimelineRoute
+  '/workspaces/$workspaceId/proposals/$proposalId': typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/workspaces'
+    | '/workspaces/$workspaceId'
+    | '/workspaces/new'
+    | '/workspaces/$workspaceId/chat'
+    | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/medications'
+    | '/workspaces/$workspaceId/questions'
+    | '/workspaces/$workspaceId/reports'
+    | '/workspaces/$workspaceId/status'
+    | '/workspaces/$workspaceId/symptoms'
+    | '/workspaces/$workspaceId/timeline'
+    | '/workspaces/$workspaceId/proposals/$proposalId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login'
-  id: '__root__' | '/' | '/dashboard' | '/login'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/workspaces'
+    | '/workspaces/$workspaceId'
+    | '/workspaces/new'
+    | '/workspaces/$workspaceId/chat'
+    | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/medications'
+    | '/workspaces/$workspaceId/questions'
+    | '/workspaces/$workspaceId/reports'
+    | '/workspaces/$workspaceId/status'
+    | '/workspaces/$workspaceId/symptoms'
+    | '/workspaces/$workspaceId/timeline'
+    | '/workspaces/$workspaceId/proposals/$proposalId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/workspaces'
+    | '/workspaces/$workspaceId'
+    | '/workspaces/new'
+    | '/workspaces/$workspaceId/chat'
+    | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/medications'
+    | '/workspaces/$workspaceId/questions'
+    | '/workspaces/$workspaceId/reports'
+    | '/workspaces/$workspaceId/status'
+    | '/workspaces/$workspaceId/symptoms'
+    | '/workspaces/$workspaceId/timeline'
+    | '/workspaces/$workspaceId/proposals/$proposalId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  WorkspacesRoute: typeof WorkspacesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspaces': {
+      id: '/workspaces'
+      path: '/workspaces'
+      fullPath: '/workspaces'
+      preLoaderRoute: typeof WorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -82,13 +253,135 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workspaces/new': {
+      id: '/workspaces/new'
+      path: '/new'
+      fullPath: '/workspaces/new'
+      preLoaderRoute: typeof WorkspacesNewRouteImport
+      parentRoute: typeof WorkspacesRoute
+    }
+    '/workspaces/$workspaceId': {
+      id: '/workspaces/$workspaceId'
+      path: '/$workspaceId'
+      fullPath: '/workspaces/$workspaceId'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdRouteImport
+      parentRoute: typeof WorkspacesRoute
+    }
+    '/workspaces/$workspaceId/timeline': {
+      id: '/workspaces/$workspaceId/timeline'
+      path: '/timeline'
+      fullPath: '/workspaces/$workspaceId/timeline'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdTimelineRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/symptoms': {
+      id: '/workspaces/$workspaceId/symptoms'
+      path: '/symptoms'
+      fullPath: '/workspaces/$workspaceId/symptoms'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdSymptomsRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/status': {
+      id: '/workspaces/$workspaceId/status'
+      path: '/status'
+      fullPath: '/workspaces/$workspaceId/status'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdStatusRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/reports': {
+      id: '/workspaces/$workspaceId/reports'
+      path: '/reports'
+      fullPath: '/workspaces/$workspaceId/reports'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdReportsRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/questions': {
+      id: '/workspaces/$workspaceId/questions'
+      path: '/questions'
+      fullPath: '/workspaces/$workspaceId/questions'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdQuestionsRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/medications': {
+      id: '/workspaces/$workspaceId/medications'
+      path: '/medications'
+      fullPath: '/workspaces/$workspaceId/medications'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdMedicationsRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/import': {
+      id: '/workspaces/$workspaceId/import'
+      path: '/import'
+      fullPath: '/workspaces/$workspaceId/import'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdImportRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/chat': {
+      id: '/workspaces/$workspaceId/chat'
+      path: '/chat'
+      fullPath: '/workspaces/$workspaceId/chat'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdChatRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/proposals/$proposalId': {
+      id: '/workspaces/$workspaceId/proposals/$proposalId'
+      path: '/proposals/$proposalId'
+      fullPath: '/workspaces/$workspaceId/proposals/$proposalId'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdProposalsProposalIdRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
   }
 }
+
+interface WorkspacesWorkspaceIdRouteChildren {
+  WorkspacesWorkspaceIdChatRoute: typeof WorkspacesWorkspaceIdChatRoute
+  WorkspacesWorkspaceIdImportRoute: typeof WorkspacesWorkspaceIdImportRoute
+  WorkspacesWorkspaceIdMedicationsRoute: typeof WorkspacesWorkspaceIdMedicationsRoute
+  WorkspacesWorkspaceIdQuestionsRoute: typeof WorkspacesWorkspaceIdQuestionsRoute
+  WorkspacesWorkspaceIdReportsRoute: typeof WorkspacesWorkspaceIdReportsRoute
+  WorkspacesWorkspaceIdStatusRoute: typeof WorkspacesWorkspaceIdStatusRoute
+  WorkspacesWorkspaceIdSymptomsRoute: typeof WorkspacesWorkspaceIdSymptomsRoute
+  WorkspacesWorkspaceIdTimelineRoute: typeof WorkspacesWorkspaceIdTimelineRoute
+  WorkspacesWorkspaceIdProposalsProposalIdRoute: typeof WorkspacesWorkspaceIdProposalsProposalIdRoute
+}
+
+const WorkspacesWorkspaceIdRouteChildren: WorkspacesWorkspaceIdRouteChildren = {
+  WorkspacesWorkspaceIdChatRoute: WorkspacesWorkspaceIdChatRoute,
+  WorkspacesWorkspaceIdImportRoute: WorkspacesWorkspaceIdImportRoute,
+  WorkspacesWorkspaceIdMedicationsRoute: WorkspacesWorkspaceIdMedicationsRoute,
+  WorkspacesWorkspaceIdQuestionsRoute: WorkspacesWorkspaceIdQuestionsRoute,
+  WorkspacesWorkspaceIdReportsRoute: WorkspacesWorkspaceIdReportsRoute,
+  WorkspacesWorkspaceIdStatusRoute: WorkspacesWorkspaceIdStatusRoute,
+  WorkspacesWorkspaceIdSymptomsRoute: WorkspacesWorkspaceIdSymptomsRoute,
+  WorkspacesWorkspaceIdTimelineRoute: WorkspacesWorkspaceIdTimelineRoute,
+  WorkspacesWorkspaceIdProposalsProposalIdRoute:
+    WorkspacesWorkspaceIdProposalsProposalIdRoute,
+}
+
+const WorkspacesWorkspaceIdRouteWithChildren =
+  WorkspacesWorkspaceIdRoute._addFileChildren(
+    WorkspacesWorkspaceIdRouteChildren,
+  )
+
+interface WorkspacesRouteChildren {
+  WorkspacesWorkspaceIdRoute: typeof WorkspacesWorkspaceIdRouteWithChildren
+  WorkspacesNewRoute: typeof WorkspacesNewRoute
+}
+
+const WorkspacesRouteChildren: WorkspacesRouteChildren = {
+  WorkspacesWorkspaceIdRoute: WorkspacesWorkspaceIdRouteWithChildren,
+  WorkspacesNewRoute: WorkspacesNewRoute,
+}
+
+const WorkspacesRouteWithChildren = WorkspacesRoute._addFileChildren(
+  WorkspacesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  WorkspacesRoute: WorkspacesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

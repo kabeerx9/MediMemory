@@ -144,6 +144,11 @@ export const healthService = {
     return healthRepository.updateProposal(userId, proposalId, input);
   },
 
+  async getProposal(userId: string, proposalId: string) {
+    const proposal = await healthRepository.findProposalForUser(userId, proposalId);
+    return healthRepository.getProposal(proposal.workspaceId, proposal.id);
+  },
+
   approveProposal(userId: string, proposalId: string) {
     return healthRepository.approveProposal(userId, proposalId);
   },

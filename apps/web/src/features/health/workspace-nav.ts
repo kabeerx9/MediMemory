@@ -27,6 +27,10 @@ export const workspaceSections = [
   icon: LucideIcon;
 }>;
 
+export function isWorkspaceChatRoute(pathname: string, workspaceId: string) {
+  return pathname === `/workspaces/${workspaceId}/chat`;
+}
+
 export function isWorkspaceSectionActive(pathname: string, workspaceId: string, sectionTo: string) {
   const base = `/workspaces/${workspaceId}`;
   if (sectionTo === "/workspaces/$workspaceId") {

@@ -9,12 +9,14 @@ import { Textarea } from "@health-conversation/ui/components/textarea";
 import type { HealthWorkspace, MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@health-conversation/ui/components/sidebar";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { FileText, MessageSquarePlus, Plus, Save, Sparkles } from "lucide-react";
+import { FileText, Plus, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Eyebrow } from "@/components/brand";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { healthApi } from "@/features/health/api";
+import { WorkspaceChat } from "@/features/health/workspace-chat";
+import { isWorkspaceChatRoute } from "@/features/health/workspace-nav";
 
 export { workspaceSections } from "@/features/health/workspace-nav";
 
@@ -55,7 +57,7 @@ export function WorkspaceShell({ workspaceId, userEmail }: { workspaceId: string
   return (
     <SidebarProvider className="flex min-h-0 min-w-0 flex-1">
       <WorkspaceSidebar workspaces={workspaces} workspaceId={workspaceId} />
-      <SidebarInset className="starfield min-w-0">
+      <SidebarInset className="starfield flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 flex-wrap items-start gap-3 border-b border-border px-4 py-4 lg:px-8">
           <SidebarTrigger className="mt-0.5" />
           <div className="min-w-0 flex-1 space-y-1">
@@ -67,17 +69,33 @@ export function WorkspaceShell({ workspaceId, userEmail }: { workspaceId: string
           {detail ? <Badge variant="violet">Curated memory · not raw chat</Badge> : null}
         </header>
 
-        <div className="mx-auto w-full max-w-7xl flex-1 space-y-5 overflow-y-auto px-4 py-6 lg:px-8">
-          {error ? <ErrorMessage message={error} /> : null}
+        {error ? (
+          <div className="px-4 py-3 lg:px-8">
+            <ErrorMessage message={error} />
+          </div>
+        ) : null}
 
-          {detail ? (
-            <WorkspaceContext.Provider value={{ detail, refresh }}>
-              {pathname === "/workspaces/" + workspaceId ? <WorkspaceOverview detail={detail} /> : <Outlet />}
-            </WorkspaceContext.Provider>
-          ) : (
+        {detail ? (
+          <WorkspaceContext.Provider value={{ detail, refresh }}>
+            {isWorkspaceChatRoute(pathname, workspaceId) ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <Outlet />
+              </div>
+            ) : (
+              <div className="mx-auto w-full max-w-7xl flex-1 space-y-5 overflow-y-auto px-4 py-6 lg:px-8">
+                {pathname === "/workspaces/" + workspaceId ? (
+                  <WorkspaceOverview detail={detail} />
+                ) : (
+                  <Outlet />
+                )}
+              </div>
+            )}
+          </WorkspaceContext.Provider>
+        ) : (
+          <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8">
             <EmptyState>Create or select a workspace to begin.</EmptyState>
-          )}
-        </div>
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
@@ -214,7 +232,18 @@ export function QuestionPage({ detail, refresh }: WorkspaceRouteContext) {
 
 export function ChatPage({ detail, refresh }: WorkspaceRouteContext) {
   const navigate = useNavigate();
-  return <ChatTab detail={detail} onRefresh={refresh} onProposal={(proposal) => navigate({ to: "/workspaces/$workspaceId/proposals/$proposalId", params: { workspaceId: detail.workspace.id, proposalId: proposal.id } })} />;
+  return (
+    <WorkspaceChat
+      detail={detail}
+      onProposal={(proposal) =>
+        navigate({
+          to: "/workspaces/$workspaceId/proposals/$proposalId",
+          params: { workspaceId: detail.workspace.id, proposalId: proposal.id },
+        })
+      }
+      onRefresh={refresh}
+    />
+  );
 }
 
 export function ImportPage({ detail, refresh }: WorkspaceRouteContext) {
@@ -389,68 +418,6 @@ function QuestionTab({ detail, busy, onAdd }: { detail: WorkspaceDetail; busy: b
   const [question, setQuestion] = useState("");
   const [context, setContext] = useState("");
   return <TwoColumn title="Doctor Questions" form={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onAdd({ question, context: context || null, status: "open" }); setQuestion(""); setContext(""); }}><Field label="Question"><TextArea value={question} onChange={(event) => setQuestion(event.target.value)} required /></Field><Field label="Context"><TextArea value={context} onChange={(event) => setContext(event.target.value)} /></Field><Button disabled={busy} type="submit"><Plus className="mr-2 size-4" />Add question</Button></form>} items={detail.doctorQuestions.map((item) => ({ title: item.question, meta: item.status, body: item.context ?? item.answer ?? "" }))} />;
-}
-
-function ChatTab({ detail, onRefresh, onProposal }: { detail: WorkspaceDetail; onRefresh: () => Promise<void>; onProposal: (proposal: MemoryProposal) => void }) {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<TemporaryChatMessageInput[]>([]);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setMessages([]);
-    setMessage("");
-  }, [detail.workspace.id]);
-
-  async function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const content = message.trim();
-    if (!content) return;
-    const nextMessages: TemporaryChatMessageInput[] = [...messages, { role: "user", content }];
-    setMessages(nextMessages);
-    setMessage("");
-    setBusy(true);
-    try {
-      const response = await healthApi.sendTemporaryChatTurn(detail.workspace.id, content, messages);
-      setMessages([...nextMessages, response.assistantMessage]);
-    } catch (err) {
-      setMessages(messages);
-      toast.error(err instanceof Error ? err.message : "Could not send message");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function propose() {
-    if (messages.length === 0) return;
-    setBusy(true);
-    try {
-      const next = await healthApi.proposeFromTemporaryChat(detail.workspace.id, "Temporary chat memory proposal", messages);
-      onProposal(next);
-      await onRefresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create proposal");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveChat() {
-    if (messages.length === 0) return;
-    setBusy(true);
-    try {
-      await healthApi.saveChat(detail.workspace.id, "Saved workspace chat", messages);
-      toast.success("Chat saved");
-      await onRefresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save chat");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <Card variant="feature"><CardHeader><CardTitle>Workspace Chat</CardTitle></CardHeader><CardContent className="space-y-4"><div className="max-h-[460px] space-y-3 overflow-y-auto rounded-lg border border-border bg-[var(--surface-code)] p-3">{messages.length === 0 ? <p className="text-sm text-muted-foreground">New temporary chat.</p> : messages.map((item, index) => <div key={index + item.role + item.content.slice(0, 12)} className={"rounded-md px-3 py-2 text-sm " + (item.role === "user"
-                        ? "ml-8 border border-sentri-lime/40 bg-[var(--surface-chat-user)] text-foreground"
-                        : "mr-8 border border-border bg-[var(--surface-chat-assistant)] font-mono-code")}><div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{item.role}</div><div className="whitespace-pre-wrap">{item.content}</div></div>)}</div><form className="space-y-3" onSubmit={send}><TextArea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Ask about the case, prepare doctor questions, or paste an update..." rows={5} /><div className="flex flex-wrap gap-2"><Button disabled={busy || !message.trim()} type="submit"><MessageSquarePlus className="mr-2 size-4" />Send</Button><Button disabled={busy || messages.length === 0} onClick={propose} type="button" variant="outline"><Sparkles className="mr-2 size-4" />Add to Context</Button><Button disabled={busy || messages.length === 0} onClick={saveChat} type="button" variant="outline"><Save className="mr-2 size-4" />Save Chat</Button><Button disabled={busy || messages.length === 0} onClick={() => setMessages([])} type="button" variant="outline"><Plus className="mr-2 size-4" />New Chat</Button></div></form></CardContent></Card>;
 }
 
 function TwoColumn({ title, form, items }: { title: string; form: React.ReactNode; items: Array<{ title: string; meta: string; body: string }> }) {

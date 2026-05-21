@@ -14,11 +14,12 @@ type WorkspacesResponse = { workspaces: HealthWorkspace[] };
 type ChatTurnResponse = { assistantMessage: { role: "assistant"; content: string } };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasBody = init?.body !== undefined && init.body !== null;
   const response = await fetch(env.VITE_SERVER_URL + path, {
     ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
   });

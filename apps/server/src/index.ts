@@ -26,6 +26,13 @@ fastify.setErrorHandler((error, _request, reply) => {
     reply.status(400).send({ error: "Invalid request", code: "VALIDATION_ERROR", issues: error.issues });
     return;
   }
+  if (error && typeof error === "object" && "statusCode" in error) {
+    const statusError = error as Error & { statusCode?: number; code?: string };
+    if (typeof statusError.statusCode === "number" && statusError.statusCode >= 400 && statusError.statusCode < 500) {
+      reply.status(statusError.statusCode).send({ error: statusError.message, code: statusError.code ?? "BAD_REQUEST" });
+      return;
+    }
+  }
   fastify.log.error({ err: error }, "Unhandled server error");
   reply.status(500).send({ error: "Internal server error", code: "INTERNAL_SERVER_ERROR" });
 });

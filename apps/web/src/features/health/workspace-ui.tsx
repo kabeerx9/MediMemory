@@ -1,13 +1,13 @@
 import type { FormEvent } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Badge } from "@health-conversation/ui/components/badge";
-import { Button } from "@health-conversation/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@health-conversation/ui/components/card";
-import { Input } from "@health-conversation/ui/components/input";
-import { Label } from "@health-conversation/ui/components/label";
-import { Textarea } from "@health-conversation/ui/components/textarea";
-import type { HealthWorkspace, MemoryProposal, WorkspaceDetail } from "@health-conversation/contracts/health";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@health-conversation/ui/components/sidebar";
+import { Badge } from "@caretalk/ui/components/badge";
+import { Button } from "@caretalk/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@caretalk/ui/components/card";
+import { Input } from "@caretalk/ui/components/input";
+import { Label } from "@caretalk/ui/components/label";
+import { Textarea } from "@caretalk/ui/components/textarea";
+import type { HealthWorkspace, MemoryProposal, WorkspaceDetail } from "@caretalk/contracts/health";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@caretalk/ui/components/sidebar";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Plus, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -177,7 +177,7 @@ export function WorkspaceOverview({ detail }: { detail: WorkspaceDetail }) {
           <Eyebrow>Memory</Eyebrow>
           <h2 className="font-display text-3xl font-semibold tracking-tight">Saved health memory</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            This is the organized memory built from approved updates. Add messy notes separately and let MediMemory sort them.
+            This is the organized memory built from approved updates. Add messy notes separately and let Caretalk sort them.
           </p>
         </div>
         <Link
@@ -290,7 +290,7 @@ export function AddToMemoryPage({ detail, refresh }: WorkspaceRouteContext) {
         <Eyebrow>Add to memory</Eyebrow>
         <h2 className="font-display text-3xl font-semibold tracking-tight">Drop in the messy update</h2>
         <p className="text-sm text-muted-foreground">
-          Paste what happened. MediMemory will propose organized changes before anything is saved.
+          Paste what happened. Caretalk will propose organized changes before anything is saved.
         </p>
       </div>
 

@@ -13,7 +13,7 @@ import {
   workspaceDetailSchema,
   workspaceParamsSchema,
   workspacesResponseSchema,
-} from "@health-conversation/contracts/health";
+} from "@caretalk/contracts/health";
 import type { FastifyPluginAsync } from "fastify";
 
 import { getRequiredUserId } from "../lib/auth";

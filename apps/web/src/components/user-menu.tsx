@@ -1,4 +1,4 @@
-import { Button } from "@health-conversation/ui/components/button";
+import { Button } from "@caretalk/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,8 +7,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@health-conversation/ui/components/dropdown-menu";
-import { Skeleton } from "@health-conversation/ui/components/skeleton";
+} from "@caretalk/ui/components/dropdown-menu";
+import { Skeleton } from "@caretalk/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";

@@ -1,7 +1,7 @@
 import { expo } from "@better-auth/expo";
-import { createDb } from "@health-conversation/db";
-import * as schema from "@health-conversation/db/schema/auth";
-import { env } from "@health-conversation/env/server";
+import { createDb } from "@caretalk/db";
+import * as schema from "@caretalk/db/schema/auth";
+import { env } from "@caretalk/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
@@ -16,7 +16,7 @@ export function createAuth() {
     }),
     trustedOrigins: [
       env.CORS_ORIGIN,
-      "health-conversation://",
+      "caretalk://",
       ...(env.NODE_ENV === "development"
         ? ["exp://", "exp://**", "exp://192.168.*.*:*/**", "http://localhost:8081"]
         : []),

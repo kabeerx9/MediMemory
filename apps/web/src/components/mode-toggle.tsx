@@ -1,10 +1,10 @@
-import { Button } from "@health-conversation/ui/components/button";
+import { Button } from "@caretalk/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@health-conversation/ui/components/dropdown-menu";
+} from "@caretalk/ui/components/dropdown-menu";
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/components/theme-provider";

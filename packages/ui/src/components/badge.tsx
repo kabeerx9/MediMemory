@@ -2,7 +2,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@health-conversation/ui/lib/utils";
+import { cn } from "@caretalk/ui/lib/utils";
 
 const badgeVariants = cva(
   "group/badge inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap transition-all [&>svg]:pointer-events-none [&>svg]:size-3",

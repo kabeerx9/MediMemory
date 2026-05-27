@@ -12,11 +12,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@health-conversation/ui/components",
-    "utils": "@health-conversation/ui/lib/utils",
-    "hooks": "@health-conversation/ui/hooks",
-    "lib": "@health-conversation/ui/lib",
-    "ui": "@health-conversation/ui/components"
+    "components": "@caretalk/ui/components",
+    "utils": "@caretalk/ui/lib/utils",
+    "hooks": "@caretalk/ui/hooks",
+    "lib": "@caretalk/ui/lib",
+    "ui": "@caretalk/ui/components"
   },
   "menuColor": "default",
   "menuAccent": "subtle",

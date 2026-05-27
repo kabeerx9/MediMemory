@@ -1,7 +1,7 @@
 import type { FormEvent, KeyboardEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@health-conversation/ui/components/button";
-import type { MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
+import { Button } from "@caretalk/ui/components/button";
+import type { MemoryProposal, TemporaryChatMessageInput, WorkspaceDetail } from "@caretalk/contracts/health";
 import { Bot, Loader2, RotateCcw, Save, Send, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 
@@ -195,7 +195,7 @@ export function WorkspaceChat({
               disabled={busy}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Message MediMemory…"
+              placeholder="Message Caretalk..."
               rows={1}
               value={draft}
             />
@@ -240,7 +240,7 @@ function ChatMessage({ message }: { message: TemporaryChatMessageInput }) {
         <Bot className="size-4 text-sentri-lime" />
       </div>
       <div className="min-w-0 flex-1 space-y-1 pt-0.5">
-        <p className="text-xs font-medium text-muted-foreground">MediMemory</p>
+        <p className="text-xs font-medium text-muted-foreground">Caretalk</p>
         <div className="text-[15px] leading-relaxed text-foreground">
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>

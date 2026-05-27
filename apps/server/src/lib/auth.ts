@@ -1,4 +1,4 @@
-import { auth } from "@health-conversation/auth";
+import { auth } from "@caretalk/auth";
 import type { FastifyRequest } from "fastify";
 
 import { unauthorized } from "./http-error";

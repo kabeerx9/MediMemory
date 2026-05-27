@@ -1,5 +1,5 @@
-import { Toaster } from "@health-conversation/ui/components/sonner";
-import { TooltipProvider } from "@health-conversation/ui/components/tooltip";
+import { Toaster } from "@caretalk/ui/components/sonner";
+import { TooltipProvider } from "@caretalk/ui/components/tooltip";
 import { HeadContent, Outlet, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
@@ -15,11 +15,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "MediMemory",
+        title: "Caretalk",
       },
       {
         name: "description",
-        content: "MediMemory keeps temporary health chats separate from curated medical memory",
+        content: "Caretalk keeps temporary health chats separate from curated medical memory",
       },
     ],
     links: [

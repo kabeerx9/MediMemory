@@ -1,4 +1,4 @@
-import { Button } from "@health-conversation/ui/components/button";
+import { Button } from "@caretalk/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   useSidebar,
-} from "@health-conversation/ui/components/sidebar";
-import type { HealthWorkspace } from "@health-conversation/contracts/health";
+} from "@caretalk/ui/components/sidebar";
+import type { HealthWorkspace } from "@caretalk/contracts/health";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
@@ -40,7 +40,7 @@ export function WorkspaceSidebar({
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border p-3">
         <p className="truncate px-2 font-display text-sm font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-          MediMemory
+          Caretalk
         </p>
         <p className="type-eyebrow px-2 text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden">
           Workspaces

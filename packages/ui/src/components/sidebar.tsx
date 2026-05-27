@@ -5,24 +5,24 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { useIsMobile } from "@health-conversation/ui/hooks/use-mobile"
-import { cn } from "@health-conversation/ui/lib/utils"
-import { Button } from "@health-conversation/ui/components/button"
-import { Input } from "@health-conversation/ui/components/input"
-import { Separator } from "@health-conversation/ui/components/separator"
+import { useIsMobile } from "@caretalk/ui/hooks/use-mobile"
+import { cn } from "@caretalk/ui/lib/utils"
+import { Button } from "@caretalk/ui/components/button"
+import { Input } from "@caretalk/ui/components/input"
+import { Separator } from "@caretalk/ui/components/separator"
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@health-conversation/ui/components/sheet"
-import { Skeleton } from "@health-conversation/ui/components/skeleton"
+} from "@caretalk/ui/components/sheet"
+import { Skeleton } from "@caretalk/ui/components/skeleton"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@health-conversation/ui/components/tooltip"
+} from "@caretalk/ui/components/tooltip"
 import { PanelLeftIcon } from "lucide-react"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"

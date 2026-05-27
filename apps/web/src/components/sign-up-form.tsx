@@ -1,7 +1,7 @@
-import { Button } from "@health-conversation/ui/components/button";
-import { Card, CardContent } from "@health-conversation/ui/components/card";
-import { Input } from "@health-conversation/ui/components/input";
-import { Label } from "@health-conversation/ui/components/label";
+import { Button } from "@caretalk/ui/components/button";
+import { Card, CardContent } from "@caretalk/ui/components/card";
+import { Input } from "@caretalk/ui/components/input";
+import { Label } from "@caretalk/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -60,7 +60,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           <CardContent className="space-y-6 pt-8">
             <div className="space-y-1 text-center lg:text-left">
               <Eyebrow className="text-sentri-violet-mid">Create account</Eyebrow>
-              <h2 className="font-display text-2xl font-semibold">Join MediMemory</h2>
+              <h2 className="font-display text-2xl font-semibold">Join Caretalk</h2>
             </div>
 
             <form

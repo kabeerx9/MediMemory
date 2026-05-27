@@ -8,7 +8,7 @@ import type {
   TemporaryChatTurnInput,
   UpdateMemoryProposalInput,
   UpdateWorkspaceInput,
-} from "@health-conversation/contracts/health";
+} from "@caretalk/contracts/health";
 
 import { notFound } from "../lib/http-error";
 import { healthRepository } from "../repositories/health-repository";

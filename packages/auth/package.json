@@ -1,5 +1,5 @@
 {
-  "name": "@health-conversation/auth",
+  "name": "@caretalk/auth",
   "type": "module",
   "exports": {
     ".": {
@@ -12,14 +12,14 @@
   "scripts": {},
   "dependencies": {
     "@better-auth/expo": "catalog:",
-    "@health-conversation/db": "workspace:*",
-    "@health-conversation/env": "workspace:*",
+    "@caretalk/db": "workspace:*",
+    "@caretalk/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "typescript": "^6"
   }
 }

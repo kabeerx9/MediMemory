@@ -1,5 +1,5 @@
 {
-  "name": "@health-conversation/contracts",
+  "name": "@caretalk/contracts",
   "type": "module",
   "exports": {
     ".": {
@@ -16,7 +16,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "typescript": "^6"
   }
 }

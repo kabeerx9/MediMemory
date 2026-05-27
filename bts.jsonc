@@ -13,7 +13,7 @@
   "$schema": "https://r2.better-t-stack.dev/schema.json",
   "version": "3.28.3",
   "createdAt": "2026-05-18T11:19:34.763Z",
-  "reproducibleCommand": "pnpm create better-t-stack@latest health-conversation --frontend tanstack-router native-bare --backend fastify --runtime node --database postgres --orm drizzle --api none --auth better-auth --payments none --addons turborepo --examples none --db-setup none --web-deploy none --server-deploy none --git --package-manager pnpm --install",
+  "reproducibleCommand": "pnpm create better-t-stack@latest caretalk --frontend tanstack-router native-bare --backend fastify --runtime node --database postgres --orm drizzle --api none --auth better-auth --payments none --addons turborepo --examples none --db-setup none --web-deploy none --server-deploy none --git --package-manager pnpm --install",
   "database": "postgres",
   "orm": "drizzle",
   "backend": "fastify",

@@ -11,18 +11,18 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
-    "@health-conversation/auth": "workspace:*",
-    "@health-conversation/db": "workspace:*",
-    "@health-conversation/env": "workspace:*",
+    "@caretalk/auth": "workspace:*",
+    "@caretalk/db": "workspace:*",
+    "@caretalk/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "fastify": "^5.3.3",
     "zod": "catalog:",
-    "@health-conversation/contracts": "workspace:*",
+    "@caretalk/contracts": "workspace:*",
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "^0.21.9",
     "tsx": "^4.19.2",

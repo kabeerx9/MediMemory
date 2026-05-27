@@ -1,4 +1,4 @@
-import { env } from "@health-conversation/env/web";
+import { env } from "@caretalk/env/web";
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({

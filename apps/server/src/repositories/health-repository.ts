@@ -11,9 +11,9 @@ import type {
   ExtractedMemoryProposal,
   UpdateMemoryProposalInput,
   UpdateWorkspaceInput,
-} from "@health-conversation/contracts/health";
-import { db } from "@health-conversation/db";
-import { user } from "@health-conversation/db/schema/auth";
+} from "@caretalk/contracts/health";
+import { db } from "@caretalk/db";
+import { user } from "@caretalk/db/schema/auth";
 import {
   chatMessages,
   chatSessions,
@@ -27,7 +27,7 @@ import {
   symptoms,
   timelineEntries,
   type SourceRef,
-} from "@health-conversation/db/schema/health";
+} from "@caretalk/db/schema/health";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { notFound } from "../lib/http-error";

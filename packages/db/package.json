@@ -1,5 +1,5 @@
 {
-  "name": "@health-conversation/db",
+  "name": "@caretalk/db",
   "type": "module",
   "exports": {
     ".": {
@@ -17,15 +17,15 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
-    "@health-conversation/env": "workspace:*",
+    "@caretalk/env": "workspace:*",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.1",
     "zod": "catalog:",
-    "@health-conversation/contracts": "workspace:*"
+    "@caretalk/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.31.8",
     "typescript": "^6",

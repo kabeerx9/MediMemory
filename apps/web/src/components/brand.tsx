@@ -1,4 +1,4 @@
-import { cn } from "@health-conversation/ui/lib/utils";
+import { cn } from "@caretalk/ui/lib/utils";
 import type { ReactNode } from "react";
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {

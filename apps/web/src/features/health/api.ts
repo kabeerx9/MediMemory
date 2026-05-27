@@ -1,4 +1,4 @@
-import { env } from "@health-conversation/env/web";
+import { env } from "@caretalk/env/web";
 import type {
   CreateContextImportInput,
   CreateWorkspaceInput,
@@ -8,7 +8,7 @@ import type {
   UpdateWorkspaceInput,
   WorkspaceDetail,
   HealthWorkspace,
-} from "@health-conversation/contracts/health";
+} from "@caretalk/contracts/health";
 
 type WorkspacesResponse = { workspaces: HealthWorkspace[] };
 type ChatTurnResponse = { assistantMessage: { role: "assistant"; content: string } };

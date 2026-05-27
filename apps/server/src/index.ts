@@ -1,6 +1,6 @@
 import fastifyCors from "@fastify/cors";
-import { auth } from "@health-conversation/auth";
-import { env } from "@health-conversation/env/server";
+import { auth } from "@caretalk/auth";
+import { env } from "@caretalk/env/server";
 import { ZodError } from "zod";
 import Fastify from "fastify";
 

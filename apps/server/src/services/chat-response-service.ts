@@ -1,5 +1,5 @@
-import type { TemporaryChatMessageInput, WorkspaceDetail } from "@health-conversation/contracts/health";
-import { env } from "@health-conversation/env/server";
+import type { TemporaryChatMessageInput, WorkspaceDetail } from "@caretalk/contracts/health";
+import { env } from "@caretalk/env/server";
 
 export const chatResponseService = {
   async answer(input: { workspace: WorkspaceDetail; message: string; messages?: TemporaryChatMessageInput[] }) {

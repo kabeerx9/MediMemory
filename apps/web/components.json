@@ -13,8 +13,8 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@health-conversation/ui/lib/utils",
-    "ui": "@health-conversation/ui/components",
+    "utils": "@caretalk/ui/lib/utils",
+    "ui": "@caretalk/ui/components",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

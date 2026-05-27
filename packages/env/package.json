@@ -1,5 +1,5 @@
 {
-  "name": "@health-conversation/env",
+  "name": "@caretalk/env",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "^6"
   }

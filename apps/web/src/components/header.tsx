@@ -12,7 +12,7 @@ export default function Header() {
           <span className="flex size-9 items-center justify-center rounded-md bg-[var(--sentri-accent-violet-deep)]">
             <Activity className="size-5 text-sentri-lime" />
           </span>
-          <span className="font-display text-lg font-bold tracking-tight">MediMemory</span>
+          <span className="font-display text-lg font-bold tracking-tight">Caretalk</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

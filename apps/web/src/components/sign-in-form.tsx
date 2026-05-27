@@ -1,7 +1,7 @@
-import { Button } from "@health-conversation/ui/components/button";
-import { Card, CardContent } from "@health-conversation/ui/components/card";
-import { Input } from "@health-conversation/ui/components/input";
-import { Label } from "@health-conversation/ui/components/label";
+import { Button } from "@caretalk/ui/components/button";
+import { Card, CardContent } from "@caretalk/ui/components/card";
+import { Input } from "@caretalk/ui/components/input";
+import { Label } from "@caretalk/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";

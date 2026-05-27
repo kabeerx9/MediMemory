@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "health-conversation",
-    "slug": "health-conversation",
+    "name": "Caretalk",
+    "slug": "caretalk",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "health-conversation",
+    "scheme": "caretalk",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true

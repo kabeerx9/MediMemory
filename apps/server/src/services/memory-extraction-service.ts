@@ -1,5 +1,5 @@
-import { extractedMemoryProposalSchema, type ExtractedMemoryProposal, type WorkspaceDetail } from "@health-conversation/contracts/health";
-import { env } from "@health-conversation/env/server";
+import { extractedMemoryProposalSchema, type ExtractedMemoryProposal, type WorkspaceDetail } from "@caretalk/contracts/health";
+import { env } from "@caretalk/env/server";
 
 const payloadProperties = {
   entryDate: { type: ["string", "null"] },

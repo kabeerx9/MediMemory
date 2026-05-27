@@ -1,5 +1,5 @@
 {
-  "name": "health-conversation",
+  "name": "caretalk",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -13,18 +13,18 @@
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
-    "db:push": "turbo -F @health-conversation/db db:push",
-    "db:studio": "turbo -F @health-conversation/db db:studio",
-    "db:generate": "turbo -F @health-conversation/db db:generate",
-    "db:migrate": "turbo -F @health-conversation/db db:migrate"
+    "db:push": "turbo -F @caretalk/db db:push",
+    "db:studio": "turbo -F @caretalk/db db:studio",
+    "db:generate": "turbo -F @caretalk/db db:generate",
+    "db:migrate": "turbo -F @caretalk/db db:migrate"
   },
   "dependencies": {
-    "@health-conversation/env": "workspace:*",
+    "@caretalk/env": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@health-conversation/config": "workspace:*",
+    "@caretalk/config": "workspace:*",
     "@types/node": "catalog:",
     "turbo": "^2.8.12",
     "typescript": "^6"

@@ -6,30 +6,33 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* —— Sentri brand primitives (theme-independent) —— */
+/* —— Caretalk brand primitives (theme-independent) ——
+   Quiet warm neutrals + one accent (deep teal/petrol). Variable names kept
+   as "sentri-*" so existing shared component variants (badge/button/card)
+   don't need to change — only the values shifted to the new palette. */
 :root {
-  --sentri-primary: #150f23;
-  --sentri-ink-deep: #1f1633;
+  --sentri-primary: #0f766e;
+  --sentri-ink-deep: #292521;
   --sentri-on-primary: #ffffff;
-  --sentri-accent-lime: #c2ef4e;
-  --sentri-accent-pink: #fa7faa;
-  --sentri-accent-violet: #6a5fc1;
-  --sentri-accent-violet-deep: #422082;
-  --sentri-accent-violet-mid: #79628c;
-  --sentri-canvas-dark: #1f1633;
-  --sentri-canvas-light: #ffffff;
-  --sentri-night: #150f23;
-  --sentri-press-light: #f0f0f0;
-  --sentri-press-stronger: #efefef;
-  --sentri-hairline-violet: #362d59;
-  --sentri-hairline-cool: #cfcfdb;
-  --sentri-hairline-cloud: #e5e7eb;
+  --sentri-accent-lime: #5eead4;
+  --sentri-accent-pink: #e08fa4;
+  --sentri-accent-violet: #14b8a6;
+  --sentri-accent-violet-deep: #0f766e;
+  --sentri-accent-violet-mid: #3f6f6a;
+  --sentri-canvas-dark: #1c1a17;
+  --sentri-canvas-light: #faf9f7;
+  --sentri-night: #16140f;
+  --sentri-press-light: #f0efec;
+  --sentri-press-stronger: #e9e7e2;
+  --sentri-hairline-violet: #3a352e;
+  --sentri-hairline-cool: #ded9d1;
+  --sentri-hairline-cloud: #e7e4de;
   --sentri-ink-press: #1a1a1a;
-  --sentri-on-dark-muted: #bdb8c0;
-  --sentri-on-dark-faint: #3f3849;
-  --sentri-ring-focus: #9dc1f5;
-  --sentri-on-light-muted: #6b6575;
-  --sentri-surface-tint: #f7f6fa;
+  --sentri-on-dark-muted: #beb8ad;
+  --sentri-on-dark-faint: #3a352e;
+  --sentri-ring-focus: #2dd4bf;
+  --sentri-on-light-muted: #736c62;
+  --sentri-surface-tint: #f5f3ee;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -43,11 +46,11 @@
   --surface-elevated: var(--sentri-canvas-light);
   --surface-feature: var(--sentri-surface-tint);
   --surface-subtle: var(--sentri-press-light);
-  --surface-hover: #eae8f0;
-  --surface-code: #f4f3f8;
-  --surface-chat-user: rgb(194 239 78 / 0.18);
+  --surface-hover: #efece5;
+  --surface-code: #f4f2ec;
+  --surface-chat-user: rgb(15 118 110 / 0.08);
   --surface-chat-assistant: var(--sentri-press-light);
-  --surface-nav: rgb(255 255 255 / 0.92);
+  --surface-nav: rgb(250 249 247 / 0.92);
   --hairline: var(--sentri-hairline-cloud);
   --hairline-input: var(--sentri-hairline-cool);
   --text-muted-brand: var(--sentri-on-light-muted);
@@ -91,11 +94,11 @@
   --surface-elevated: var(--sentri-ink-deep);
   --surface-feature: var(--sentri-ink-deep);
   --surface-subtle: var(--sentri-on-dark-faint);
-  --surface-hover: rgb(63 56 73 / 0.85);
+  --surface-hover: rgb(58 53 46 / 0.85);
   --surface-code: var(--sentri-night);
-  --surface-chat-user: rgb(194 239 78 / 0.12);
-  --surface-chat-assistant: rgb(21 15 35 / 0.6);
-  --surface-nav: rgb(31 22 51 / 0.95);
+  --surface-chat-user: rgb(45 212 191 / 0.1);
+  --surface-chat-assistant: rgb(22 20 15 / 0.6);
+  --surface-nav: rgb(28 26 23 / 0.95);
   --hairline: var(--sentri-hairline-violet);
   --hairline-input: var(--sentri-hairline-violet);
   --text-muted-brand: var(--sentri-on-dark-muted);
@@ -126,8 +129,8 @@
 }
 
 @theme inline {
-  --font-sans: "Rubik", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-display: "Space Grotesk", "Rubik", system-ui, sans-serif;
+  --font-sans: "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-mono: Monaco, Menlo, "Ubuntu Mono", monospace;
 
   --color-sentri-lime: var(--sentri-accent-lime);

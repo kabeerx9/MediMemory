@@ -7,7 +7,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
-import { DisplayHero, Eyebrow, LimeKeyword, StarfieldCanvas } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
@@ -23,8 +22,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         { email: value.email, password: value.password },
         {
           onSuccess: () => {
-            navigate({ to: "/" });
-            toast.success("Sign in successful");
+            navigate({ to: "/workspaces" });
+            toast.success("Signed in");
           },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
@@ -43,23 +42,13 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   if (isPending) return <Loader />;
 
   return (
-    <StarfieldCanvas className="flex items-center justify-center px-4 py-12">
-      <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_420px]">
-        <div className="hidden space-y-4 lg:block">
-          <Eyebrow>Health memory workspace</Eyebrow>
-          <DisplayHero>
-            Curated health <LimeKeyword>memory</LimeKeyword>
-          </DisplayHero>
-          <p className="type-body-lg max-w-md text-muted-foreground">
-            Temporary chats stay separate from what gets saved to your workspace. Review before anything becomes permanent.
-          </p>
-        </div>
-
+    <div className="flex min-h-svh items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-sm">
         <Card variant="light">
           <CardContent className="space-y-6 pt-8">
-            <div className="space-y-1 text-center lg:text-left">
-              <Eyebrow className="text-sentri-violet-mid">Sign in</Eyebrow>
+            <div className="space-y-1 text-center">
               <h2 className="font-display text-2xl font-semibold text-card-foreground">Welcome back</h2>
+              <p className="text-sm text-muted-foreground">Sign in to Caretalk</p>
             </div>
 
             <form
@@ -118,7 +107,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
 
               <form.Subscribe selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}>
                 {({ canSubmit, isSubmitting }) => (
-                  <Button className="w-full glow-cta-dark" disabled={!canSubmit || isSubmitting} type="submit">
+                  <Button className="w-full" disabled={!canSubmit || isSubmitting} type="submit">
                     {isSubmitting ? "Signing in…" : "Sign in"}
                   </Button>
                 )}
@@ -127,12 +116,12 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
 
             <div className="text-center">
               <Button onClick={onSwitchToSignUp} type="button" variant="link">
-                Need an account? <LimeKeyword className="ml-1 text-sm">Sign up</LimeKeyword>
+                Need an account? Sign up
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-    </StarfieldCanvas>
+    </div>
   );
 }

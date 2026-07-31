@@ -10,16 +10,18 @@
     "start": "node dist/index.mjs"
   },
   "dependencies": {
-    "@fastify/cors": "^11.0.1",
     "@caretalk/auth": "workspace:*",
+    "@caretalk/contracts": "workspace:*",
     "@caretalk/db": "workspace:*",
     "@caretalk/env": "workspace:*",
+    "@fastify/cors": "^11.0.1",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "^7.0.44",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
     "fastify": "^5.3.3",
-    "zod": "catalog:",
-    "@caretalk/contracts": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@caretalk/config": "workspace:*",

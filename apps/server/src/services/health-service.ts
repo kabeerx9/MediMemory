@@ -137,20 +137,41 @@ export const healthService = {
     const workspace = await healthRepository.getWorkspace(userId, workspaceId);
     const apiKey = requireApiKey();
 
+    // Attached files are ephemeral: the source row records that a file was the
+    // origin, but the bytes only exist for the duration of this model call.
     const source = await healthRepository.createSource(workspaceId, {
       type: "import",
       title: input.title,
-      content: input.content,
+      content:
+        input.content ??
+        (input.file ? `[Imported from file: ${input.file.name} — file not retained]` : null),
     });
 
     const activeMemories = await healthRepository.listActiveMemories(workspaceId);
     const system = buildSystemPrompt({ workspace, activeMemories, today: today(), mode: "import" });
 
+    const userContent: Array<
+      | { type: "text"; text: string }
+      | { type: "image"; image: string }
+      | { type: "file"; data: string; mediaType: string }
+    > = [];
+    if (input.file) {
+      userContent.push(
+        input.file.mediaType.startsWith("image/")
+          ? { type: "image", image: input.file.dataUrl }
+          : { type: "file", data: input.file.dataUrl, mediaType: input.file.mediaType },
+      );
+    }
+    userContent.push({
+      type: "text",
+      text: [`Title: ${input.title}`, input.content].filter(Boolean).join("\n\n"),
+    });
+
     const openrouter = createOpenRouter({ apiKey });
     const result = await generateText({
       model: openrouter.chat(env.AI_MODEL),
       system,
-      prompt: `Title: ${input.title}\n\n${input.content}`,
+      messages: [{ role: "user", content: userContent }],
       tools: buildMemoryTools(workspaceId, { sourceId: source.id }) as ToolSet,
       // Bulk backfills can be 50+ facts; models often emit one save per step,
       // so keep generous headroom or long imports truncate silently.

@@ -192,10 +192,33 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 // Import (bulk path: same tool semantics, no live conversation)
 // ---------------------------------------------------------------------------
 
-export const importInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  content: z.string().trim().min(1).max(60000),
+export const importFileMediaTypeSchema = z.enum([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+export type ImportFileMediaType = z.infer<typeof importFileMediaTypeSchema>;
+
+// Ephemeral by design: the file rides this request as a data URL, is handed to
+// the model once for extraction, and is never persisted. Size cap ~3MB raw
+// (base64 inflates ~4/3, and Vercel rejects request bodies over ~4.5MB).
+export const importFileSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  mediaType: importFileMediaTypeSchema,
+  dataUrl: z.string().startsWith("data:").max(4_200_000),
 });
+export type ImportFile = z.infer<typeof importFileSchema>;
+
+export const importInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200),
+    content: z.string().trim().min(1).max(60000).optional(),
+    file: importFileSchema.optional(),
+  })
+  .refine((value) => value.content !== undefined || value.file !== undefined, {
+    message: "Provide pasted content, a file, or both",
+  });
 export type ImportInput = z.infer<typeof importInputSchema>;
 
 export const importResponseSchema = z.object({

@@ -11,7 +11,10 @@ import { healthMemoryRoutes } from "./routes/health-memory";
 // port; the Vercel entrypoint (api/index.ts) feeds requests in via the node
 // server's request event instead.
 export function buildApp() {
-  const fastify = Fastify({ logger: true });
+  // bodyLimit: Fastify defaults to 1MiB, which rejects import requests
+  // carrying a base64 file. 8MiB gives headroom locally; on Vercel the
+  // platform's own ~4.5MB request cap bites first.
+  const fastify = Fastify({ logger: true, bodyLimit: 8 * 1024 * 1024 });
 
   fastify.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpError) {

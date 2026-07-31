@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "pnpm exec esbuild src/vercel.ts --bundle --platform=node --target=node20 --format=esm --external:pg-native --outfile=api/index.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 90
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
+}

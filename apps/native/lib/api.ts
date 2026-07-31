@@ -1,10 +1,9 @@
-import { env } from "@caretalk/env/web";
 import type {
   ChatSession,
   CreateChatSessionInput,
-  ExportResponse,
   CreateMemoryInput,
   CreateWorkspaceInput,
+  ExportResponse,
   ImportInput,
   ImportResponse,
   Memory,
@@ -13,19 +12,26 @@ import type {
   Workspace,
   WorkspaceDetail,
 } from "@caretalk/contracts/health";
+import { env } from "@caretalk/env/native";
 
-export const SERVER_URL = env.VITE_SERVER_URL;
+import { authClient } from "@/lib/auth-client";
+
+export const SERVER_URL = env.EXPO_PUBLIC_SERVER_URL;
 
 type WorkspacesResponse = { workspaces: Workspace[] };
 type MessagesResponse = { messages: Array<{ id: string; role: string; parts: unknown[] }> };
 
+// Unlike the web client, native fetch does not have access to the browser
+// cookie jar — better-auth's expo plugin persists the session separately
+// (SecureStore) and exposes it as a cookie string via getCookie(). Every
+// request must attach it manually.
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined && init.body !== null;
   const response = await fetch(SERVER_URL + path, {
     ...init,
-    credentials: "include",
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      Cookie: authClient.getCookie(),
       ...(init?.headers ?? {}),
     },
   });
@@ -49,7 +55,7 @@ export const healthApi = {
 
   exportAccountMarkdown: async (): Promise<string> => {
     const response = await fetch(SERVER_URL + "/api/v1/export?format=markdown", {
-      credentials: "include",
+      headers: { Cookie: authClient.getCookie() },
     });
     if (!response.ok) throw new Error("Export failed");
     return response.text();
@@ -58,7 +64,7 @@ export const healthApi = {
   exportWorkspaceMarkdown: async (workspaceId: string): Promise<string> => {
     const response = await fetch(
       SERVER_URL + "/api/v1/workspaces/" + workspaceId + "/export?format=markdown",
-      { credentials: "include" },
+      { headers: { Cookie: authClient.getCookie() } },
     );
     if (!response.ok) throw new Error("Export failed");
     return response.text();

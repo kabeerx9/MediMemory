@@ -151,6 +151,18 @@ export const healthRepository = {
     };
   },
 
+  // Single-workspace export. Returned as a one-element list so it shares the
+  // exportResponse shape (and the markdown builder) with the account export.
+  async exportWorkspace(userId: string, workspaceId: string) {
+    const workspace = await this.getWorkspace(userId, workspaceId);
+    const memoryRows = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.workspaceId, workspaceId))
+      .orderBy(...memoryOrder);
+    return [{ workspace, memories: memoryRows.map(toMemory) }];
+  },
+
   // Two queries total regardless of workspace count (workspaces, then all
   // their memories via inArray), grouped in memory — not one memory query per
   // workspace.

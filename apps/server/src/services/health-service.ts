@@ -61,6 +61,13 @@ export const healthService = {
     };
   },
 
+  async exportWorkspace(userId: string, workspaceId: string) {
+    return {
+      exportedAt: new Date().toISOString(),
+      workspaces: await healthRepository.exportWorkspace(userId, workspaceId),
+    };
+  },
+
   async createMemory(userId: string, workspaceId: string, input: CreateMemoryInput) {
     await healthRepository.getWorkspace(userId, workspaceId);
     return healthRepository.createMemory(workspaceId, input);

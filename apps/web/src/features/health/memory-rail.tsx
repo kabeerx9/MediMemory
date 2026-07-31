@@ -65,15 +65,18 @@ export function MemoryRail({
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Memory
           </h2>
-          {supersededCount > 0 ? (
-            <button
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              onClick={() => setShowHistory((value) => !value)}
-              type="button"
-            >
-              {showHistory ? "Hide history" : "Show history"}
-            </button>
-          ) : null}
+          <div className="flex items-center gap-3">
+            <CopyWorkspaceButton workspaceId={workspace.id} />
+            {supersededCount > 0 ? (
+              <button
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                onClick={() => setShowHistory((value) => !value)}
+                type="button"
+              >
+                {showHistory ? "Hide history" : "Show history"}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {groups.length === 0 ? (
@@ -103,6 +106,37 @@ export function MemoryRail({
         )}
       </section>
     </div>
+  );
+}
+
+// Copies just this workspace's active memories — scoped so the paste target
+// (an external chat) gets one person's history, not the whole account.
+function CopyWorkspaceButton({ workspaceId }: { workspaceId: string }) {
+  const [busy, setBusy] = useState(false);
+
+  async function copy() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const markdown = await healthApi.exportWorkspaceMarkdown(workspaceId);
+      await navigator.clipboard.writeText(markdown);
+      toast.success("Copied — paste it into any chat");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+      disabled={busy}
+      onClick={() => void copy()}
+      type="button"
+    >
+      Copy for LLM
+    </button>
   );
 }
 

@@ -54,6 +54,19 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     return data;
   });
 
+  // Per-workspace export — the common case: one person's history, sized to
+  // paste into an external chat without dragging in other workspaces.
+  fastify.get("/api/v1/workspaces/:workspaceId/export", async (request, reply) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    const { format } = exportQuerySchema.parse(request.query);
+    const data = exportResponseSchema.parse(await healthService.exportWorkspace(userId, workspaceId));
+    if (format === "markdown") {
+      return reply.type("text/markdown; charset=utf-8").send(buildExportMarkdown(data));
+    }
+    return data;
+  });
+
   fastify.post("/api/v1/workspaces", async (request) => {
     const userId = await getRequiredUserId(request);
     return healthService.createWorkspace(userId, createWorkspaceInputSchema.parse(request.body));

@@ -1,18 +1,11 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, type TextStyle, Text } from "react-native";
 import z from "zod";
 
+import { Button, Card, ErrorNote, Field, useTheme } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { NAV_THEME } from "@/lib/constants";
-import { useColorScheme } from "@/lib/use-color-scheme";
+import { space, type } from "@/lib/theme";
 
 const signUpSchema = z.object({
   name: z.string().trim().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
@@ -48,8 +41,7 @@ function getErrorMessage(error: unknown): string | null {
 }
 
 function SignUp() {
-  const { colorScheme } = useColorScheme();
-  const theme = colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light;
+  const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
@@ -82,8 +74,10 @@ function SignUp() {
   });
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Create Account</Text>
+    <Card style={styles.card}>
+      <Text style={[type.heading as TextStyle, styles.title, { color: theme.text }]}>
+        Create account
+      </Text>
 
       <form.Subscribe
         selector={(state) => ({
@@ -96,27 +90,13 @@ function SignUp() {
 
           return (
             <>
-              {formError ? (
-                <View
-                  style={[styles.errorContainer, { backgroundColor: theme.notification + "20" }]}
-                >
-                  <Text style={[styles.errorText, { color: theme.notification }]}>{formError}</Text>
-                </View>
-              ) : null}
+              {formError ? <ErrorNote message={formError} /> : null}
 
               <form.Field name="name">
                 {(field) => (
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                      },
-                    ]}
-                    placeholder="Name"
-                    placeholderTextColor={theme.text}
+                  <Field
+                    label="Name"
+                    placeholder="Your name"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChangeText={(value) => {
@@ -125,23 +105,17 @@ function SignUp() {
                         setError(null);
                       }
                     }}
+                    autoComplete="name"
+                    textContentType="name"
                   />
                 )}
               </form.Field>
 
               <form.Field name="email">
                 {(field) => (
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                      },
-                    ]}
-                    placeholder="Email"
-                    placeholderTextColor={theme.text}
+                  <Field
+                    label="Email"
+                    placeholder="you@example.com"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChangeText={(value) => {
@@ -152,23 +126,17 @@ function SignUp() {
                     }}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
                   />
                 )}
               </form.Field>
 
               <form.Field name="password">
                 {(field) => (
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: theme.text,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                      },
-                    ]}
-                    placeholder="Password"
-                    placeholderTextColor={theme.text}
+                  <Field
+                    label="Password"
+                    placeholder="At least 8 characters"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChangeText={(value) => {
@@ -178,68 +146,37 @@ function SignUp() {
                       }
                     }}
                     secureTextEntry
+                    autoComplete="password-new"
+                    textContentType="newPassword"
                     onSubmitEditing={form.handleSubmit}
                   />
                 )}
               </form.Field>
 
-              <TouchableOpacity
+              <Button
+                label="Create account"
                 onPress={form.handleSubmit}
-                disabled={isSubmitting}
-                style={[
-                  styles.button,
-                  {
-                    backgroundColor: theme.primary,
-                    opacity: isSubmitting ? 0.5 : 1,
-                  },
-                ]}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.buttonText}>Sign Up</Text>
-                )}
-              </TouchableOpacity>
+                loading={isSubmitting}
+                full
+                style={styles.submit}
+              />
             </>
           );
         }}
       </form.Subscribe>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 16,
-    padding: 16,
-    borderWidth: 1,
+    gap: space.md,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: space.xs,
   },
-  errorContainer: {
-    marginBottom: 12,
-    padding: 8,
-  },
-  errorText: {
-    fontSize: 14,
-  },
-  input: {
-    borderWidth: 1,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  button: {
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
+  submit: {
+    marginTop: space.xs,
   },
 });
 

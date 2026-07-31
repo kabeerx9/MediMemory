@@ -129,11 +129,11 @@ function ExportButtons() {
     <div className="flex gap-2">
       <Button disabled={busy !== null} onClick={() => void copyMarkdown()} size="sm" variant="outline">
         <Copy className="size-3.5" />
-        Copy for LLM
+        Copy all
       </Button>
       <Button disabled={busy !== null} onClick={() => void downloadJson()} size="sm" variant="outline">
         <Download className="size-3.5" />
-        Download JSON
+        Back up JSON
       </Button>
     </div>
   );

@@ -9,7 +9,7 @@ import type {
 } from "@caretalk/contracts/health";
 import { db } from "@caretalk/db";
 import { chatMessages, chatSessions, memories, sources, workspaces } from "@caretalk/db/schema/health";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { notFound } from "../lib/http-error";
 
@@ -149,6 +149,39 @@ export const healthRepository = {
       memories: memoryRows.map(toMemory),
       chatSessions: sessionRows.map(toChatSession),
     };
+  },
+
+  // Two queries total regardless of workspace count (workspaces, then all
+  // their memories via inArray), grouped in memory — not one memory query per
+  // workspace.
+  async exportAccount(userId: string) {
+    const workspaceRows = await db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.ownerUserId, userId))
+      .orderBy(desc(workspaces.updatedAt));
+    if (workspaceRows.length === 0) return [];
+
+    const memoryRows = await db
+      .select()
+      .from(memories)
+      .where(inArray(memories.workspaceId, workspaceRows.map((row) => row.id)))
+      .orderBy(...memoryOrder);
+
+    const byWorkspace = new Map<string, ReturnType<typeof toMemory>[]>();
+    for (const row of memoryRows) {
+      const list = byWorkspace.get(row.workspaceId);
+      if (list) {
+        list.push(toMemory(row));
+      } else {
+        byWorkspace.set(row.workspaceId, [toMemory(row)]);
+      }
+    }
+
+    return workspaceRows.map((row) => ({
+      workspace: toWorkspace(row),
+      memories: byWorkspace.get(row.id) ?? [],
+    }));
   },
 
   async listActiveMemories(workspaceId: string) {

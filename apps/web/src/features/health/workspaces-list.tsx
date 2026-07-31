@@ -4,7 +4,7 @@ import { Input } from "@caretalk/ui/components/input";
 import { Label } from "@caretalk/ui/components/label";
 import { Textarea } from "@caretalk/ui/components/textarea";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Copy, Download, Plus } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,11 +28,14 @@ export function WorkspacesListPage() {
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-8 overflow-y-auto px-4 py-10">
-      <div className="space-y-1">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Workspaces</h1>
-        <p className="text-sm text-muted-foreground">
-          One workspace per person or health journey you're keeping track of.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Workspaces</h1>
+          <p className="text-sm text-muted-foreground">
+            One workspace per person or health journey you're keeping track of.
+          </p>
+        </div>
+        {workspaces?.length ? <ExportButtons /> : null}
       </div>
 
       {workspaces === null ? (
@@ -82,6 +85,56 @@ export function WorkspacesListPage() {
           New workspace
         </Button>
       )}
+    </div>
+  );
+}
+
+function ExportButtons() {
+  const [busy, setBusy] = useState<"copy" | "download" | null>(null);
+
+  async function copyMarkdown() {
+    if (busy) return;
+    setBusy("copy");
+    try {
+      const markdown = await healthApi.exportAccountMarkdown();
+      await navigator.clipboard.writeText(markdown);
+      toast.success("Copied — paste it into any chat");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadJson() {
+    if (busy) return;
+    setBusy("download");
+    try {
+      const data = await healthApi.exportAccount();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `caretalk-export-${data.exportedAt.slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex gap-2">
+      <Button disabled={busy !== null} onClick={() => void copyMarkdown()} size="sm" variant="outline">
+        <Copy className="size-3.5" />
+        Copy for LLM
+      </Button>
+      <Button disabled={busy !== null} onClick={() => void downloadJson()} size="sm" variant="outline">
+        <Download className="size-3.5" />
+        Download JSON
+      </Button>
     </div>
   );
 }

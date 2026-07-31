@@ -3,6 +3,8 @@ import {
   createChatSessionInputSchema,
   createMemoryInputSchema,
   createWorkspaceInputSchema,
+  exportFormatSchema,
+  exportResponseSchema,
   importInputSchema,
   importResponseSchema,
   memoryParamsSchema,
@@ -18,6 +20,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { getRequiredUserId } from "../lib/auth";
+import { buildExportMarkdown } from "../lib/export-markdown";
 import { healthService } from "../services/health-service";
 
 // Loose on purpose: `parts` is a large discriminated union owned by the `ai`
@@ -30,10 +33,25 @@ const uiMessageInputSchema = z.object({
 });
 const chatStreamInputSchema = z.object({ messages: z.array(uiMessageInputSchema) });
 
+const exportQuerySchema = z.object({ format: exportFormatSchema.default("json") });
+
 export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/api/v1/workspaces", async (request) => {
     const userId = await getRequiredUserId(request);
     return workspacesResponseSchema.parse({ workspaces: await healthService.listWorkspaces(userId) });
+  });
+
+  // Account-wide export. json = full fidelity (all memories, superseded
+  // included); markdown = active-only LLM context meant for pasting into an
+  // external chat.
+  fastify.get("/api/v1/export", async (request, reply) => {
+    const userId = await getRequiredUserId(request);
+    const { format } = exportQuerySchema.parse(request.query);
+    const data = exportResponseSchema.parse(await healthService.exportAccount(userId));
+    if (format === "markdown") {
+      return reply.type("text/markdown; charset=utf-8").send(buildExportMarkdown(data));
+    }
+    return data;
   });
 
   fastify.post("/api/v1/workspaces", async (request) => {

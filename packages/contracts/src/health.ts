@@ -206,6 +206,26 @@ export const importResponseSchema = z.object({
 export type ImportResponse = z.infer<typeof importResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// Export (account-level dump: every workspace the user owns, with all
+// memories including superseded ones — full fidelity, restorable)
+// ---------------------------------------------------------------------------
+
+export const exportFormatSchema = z.enum(["json", "markdown"]);
+export type ExportFormat = z.infer<typeof exportFormatSchema>;
+
+export const exportWorkspaceSchema = z.object({
+  workspace: workspaceSchema,
+  memories: z.array(memorySchema),
+});
+export type ExportWorkspace = z.infer<typeof exportWorkspaceSchema>;
+
+export const exportResponseSchema = z.object({
+  exportedAt: z.string(),
+  workspaces: z.array(exportWorkspaceSchema),
+});
+export type ExportResponse = z.infer<typeof exportResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Route params
 // ---------------------------------------------------------------------------
 

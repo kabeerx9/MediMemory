@@ -2,6 +2,7 @@ import { env } from "@caretalk/env/web";
 import type {
   ChatSession,
   CreateChatSessionInput,
+  ExportResponse,
   CreateMemoryInput,
   CreateWorkspaceInput,
   ImportInput,
@@ -43,6 +44,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const healthApi = {
   listWorkspaces: () => apiFetch<WorkspacesResponse>("/api/v1/workspaces"),
+
+  exportAccount: () => apiFetch<ExportResponse>("/api/v1/export"),
+
+  exportAccountMarkdown: async (): Promise<string> => {
+    const response = await fetch(SERVER_URL + "/api/v1/export?format=markdown", {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Export failed");
+    return response.text();
+  },
 
   createWorkspace: (input: CreateWorkspaceInput) =>
     apiFetch<Workspace>("/api/v1/workspaces", { method: "POST", body: JSON.stringify(input) }),

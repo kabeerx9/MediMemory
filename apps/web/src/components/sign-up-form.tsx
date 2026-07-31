@@ -7,7 +7,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
-import { DisplayHero, Eyebrow, LimeKeyword, StarfieldCanvas } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
@@ -23,8 +22,8 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         { email: value.email, password: value.password, name: value.name },
         {
           onSuccess: () => {
-            navigate({ to: "/" });
-            toast.success("Sign up successful");
+            navigate({ to: "/workspaces" });
+            toast.success("Account created");
           },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
@@ -44,23 +43,15 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   if (isPending) return <Loader />;
 
   return (
-    <StarfieldCanvas className="flex items-center justify-center px-4 py-12">
-      <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_420px]">
-        <div className="hidden space-y-4 lg:block">
-          <Eyebrow>Get started</Eyebrow>
-          <DisplayHero>
-            Build your health <LimeKeyword>workspace</LimeKeyword>
-          </DisplayHero>
-          <p className="type-body-lg max-w-md text-muted-foreground">
-            One place for curated status, timeline, meds, and doctor questions — never raw chat dumps.
-          </p>
-        </div>
-
+    <div className="flex min-h-svh items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-sm">
         <Card variant="light">
           <CardContent className="space-y-6 pt-8">
-            <div className="space-y-1 text-center lg:text-left">
-              <Eyebrow className="text-sentri-violet-mid">Create account</Eyebrow>
+            <div className="space-y-1 text-center">
               <h2 className="font-display text-2xl font-semibold">Join Caretalk</h2>
+              <p className="text-sm text-muted-foreground">
+                Track a health journey, one memory at a time.
+              </p>
             </div>
 
             <form
@@ -113,6 +104,6 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           </CardContent>
         </Card>
       </div>
-    </StarfieldCanvas>
+    </div>
   );
 }

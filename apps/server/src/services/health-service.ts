@@ -1,19 +1,41 @@
+import { randomUUID } from "node:crypto";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type {
-  CreateChatMessageInput,
   CreateChatSessionInput,
-  CreateContextImportInput,
+  CreateMemoryInput,
   CreateWorkspaceInput,
-  SaveChatInput,
-  TemporaryChatMemoryProposalInput,
-  TemporaryChatTurnInput,
-  UpdateMemoryProposalInput,
+  ImportInput,
+  UpdateMemoryInput,
   UpdateWorkspaceInput,
 } from "@caretalk/contracts/health";
+import { env } from "@caretalk/env/server";
+import {
+  convertToModelMessages,
+  generateText,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  type ToolSet,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai";
 
-import { notFound } from "../lib/http-error";
+import { HttpError } from "../lib/http-error";
+import { buildMemoryTools } from "../lib/memory-tools";
+import { buildSystemPrompt } from "../lib/system-prompt";
 import { healthRepository } from "../repositories/health-repository";
-import { chatResponseService } from "./chat-response-service";
-import { memoryExtractionService } from "./memory-extraction-service";
+
+function requireApiKey(): string {
+  const apiKey = env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new HttpError(503, "OPENROUTER_API_KEY not configured", "AI_NOT_CONFIGURED");
+  }
+  return apiKey;
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export const healthService = {
   listWorkspaces(userId: string) {
@@ -25,91 +47,112 @@ export const healthService = {
   updateWorkspace(userId: string, workspaceId: string, input: UpdateWorkspaceInput) {
     return healthRepository.updateWorkspace(userId, workspaceId, input);
   },
+  getWorkspace(userId: string, workspaceId: string) {
+    return healthRepository.getWorkspace(userId, workspaceId);
+  },
   getWorkspaceDetail(userId: string, workspaceId: string) {
     return healthRepository.getWorkspaceDetail(userId, workspaceId);
   },
 
+  async createMemory(userId: string, workspaceId: string, input: CreateMemoryInput) {
+    await healthRepository.getWorkspace(userId, workspaceId);
+    return healthRepository.createMemory(workspaceId, input);
+  },
+  updateMemory(userId: string, workspaceId: string, memoryId: string, input: UpdateMemoryInput) {
+    return healthRepository.updateMemory(userId, workspaceId, memoryId, input);
+  },
+  deleteMemory(userId: string, workspaceId: string, memoryId: string) {
+    return healthRepository.deleteMemory(userId, workspaceId, memoryId);
+  },
+
   async createChatSession(userId: string, workspaceId: string, input: CreateChatSessionInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
+    await healthRepository.getWorkspace(userId, workspaceId);
     return healthRepository.createChatSession(workspaceId, input);
   },
 
-  async createChatMessage(userId: string, workspaceId: string, sessionId: string, input: CreateChatMessageInput) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    if (!detail.chatSessions.some((session) => session.id === sessionId)) {
-      throw notFound("Chat session not found");
-    }
-    return healthRepository.createChatMessage(workspaceId, sessionId, input);
+  async listChatMessages(userId: string, workspaceId: string, sessionId: string) {
+    await healthRepository.getWorkspace(userId, workspaceId);
+    await healthRepository.getChatSession(workspaceId, sessionId);
+    return healthRepository.listChatMessages(sessionId);
   },
 
-  async sendChatTurn(userId: string, workspaceId: string, sessionId: string, input: CreateChatMessageInput) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    if (!detail.chatSessions.some((session) => session.id === sessionId)) {
-      throw notFound("Chat session not found");
-    }
-    const userMessage = await healthRepository.createChatMessage(workspaceId, sessionId, { ...input, role: "user" });
-    const content = await chatResponseService.answer({ workspace: detail, message: input.content });
-    const assistantMessage = await healthRepository.createChatMessage(workspaceId, sessionId, { role: "assistant", content });
-    return { userMessage, assistantMessage };
-  },
+  // Returns a UI-message chunk stream, not the raw streamText result: the
+  // persistence step below needs the assembled UIMessage (parts, id) that only
+  // toUIMessageStream's onFinish produces, so building that pipeline here (not
+  // in the route) keeps the "what gets saved to chat_messages" decision in the
+  // service layer rather than leaking it into route/transport code.
+  async chatStream(
+    userId: string,
+    workspaceId: string,
+    sessionId: string,
+    uiMessages: UIMessage[],
+  ): Promise<ReadableStream<UIMessageChunk>> {
+    const workspace = await healthRepository.getWorkspace(userId, workspaceId);
+    await healthRepository.getChatSession(workspaceId, sessionId);
+    const apiKey = requireApiKey();
 
-  async sendTemporaryChatTurn(userId: string, workspaceId: string, input: TemporaryChatTurnInput) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    const content = await chatResponseService.answer({ workspace: detail, message: input.message, messages: input.messages });
-    return { assistantMessage: { role: "assistant" as const, content } };
-  },
+    const activeMemories = await healthRepository.listActiveMemories(workspaceId);
+    const system = buildSystemPrompt({ workspace, activeMemories, today: today(), mode: "chat" });
 
-  async saveChat(userId: string, workspaceId: string, input: SaveChatInput) {
-    await healthRepository.getOwnedChildWorkspace(userId, workspaceId);
-    const session = await healthRepository.createChatSession(workspaceId, { title: input.title ?? "Saved chat" });
-    for (const message of input.messages) {
-      await healthRepository.createChatMessage(workspaceId, session.id, message);
-    }
-    return session;
-  },
-
-  async proposeFromTemporaryChat(userId: string, workspaceId: string, input: TemporaryChatMemoryProposalInput) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    const transcript = input.messages.map((message) => message.role.toUpperCase() + ": " + message.content).join("\n\n");
-    const source = await healthRepository.createSource(workspaceId, {
-      type: "chat_message",
-      title: input.title,
-      content: null,
-      metadata: { temporary: true, messageCount: input.messages.length },
+    const openrouter = createOpenRouter({ apiKey });
+    const result = streamText({
+      model: openrouter.chat(env.AI_MODEL),
+      system,
+      messages: await convertToModelMessages(uiMessages),
+      // Cast to the (portable, re-exported) ToolSet type rather than letting
+      // TS infer buildMemoryTools' exact structural return type here: with
+      // `composite: true`, an inferred type that embeds AI SDK internals not
+      // reachable from a public entrypoint fails the "declaration must be
+      // nameable" check (TS2883) — anchored at memory-tools.ts, a file this
+      // change may not touch.
+      tools: buildMemoryTools(workspaceId) as ToolSet,
+      stopWhen: isStepCount(8),
     });
-    const extracted = await memoryExtractionService.extractFromText({ workspace: detail, sourceTitle: input.title, text: transcript });
-    return healthRepository.createProposal(workspaceId, source.id, extracted);
+
+    return toUIMessageStream({
+      stream: result.stream,
+      originalMessages: uiMessages,
+      generateMessageId: () => randomUUID(),
+      onFinish: async ({ responseMessage }) => {
+        const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
+        const toSave = [
+          ...(lastUserMessage
+            ? [{ id: lastUserMessage.id, role: "user" as const, parts: lastUserMessage.parts as unknown[] }]
+            : []),
+          { id: responseMessage.id, role: "assistant" as const, parts: responseMessage.parts as unknown[] },
+        ];
+        await healthRepository.saveChatMessages(workspaceId, sessionId, toSave);
+      },
+    });
   },
 
-  async importTranscript(userId: string, workspaceId: string, input: CreateContextImportInput) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    const source = await healthRepository.createSource(workspaceId, { type: "transcript_import", title: input.title, content: input.content });
-    const extracted = await memoryExtractionService.extractFromText({ workspace: detail, sourceTitle: input.title, text: input.content });
-    return healthRepository.createProposal(workspaceId, source.id, extracted);
-  },
+  async importDocument(userId: string, workspaceId: string, input: ImportInput) {
+    const workspace = await healthRepository.getWorkspace(userId, workspaceId);
+    const apiKey = requireApiKey();
 
-  async proposeFromChat(userId: string, workspaceId: string, sessionId: string) {
-    const detail = await healthRepository.getWorkspaceDetail(userId, workspaceId);
-    if (!detail.chatSessions.some((session) => session.id === sessionId)) {
-      throw notFound("Chat session not found");
-    }
-    const messages = await healthRepository.listChatMessages(workspaceId, sessionId);
-    const transcript = messages.map((message) => message.role.toUpperCase() + ": " + message.content).join("\n\n");
-    const source = await healthRepository.createSource(workspaceId, { type: "chat_message", title: "Chat session memory proposal", content: transcript, metadata: { sessionId } });
-    const extracted = await memoryExtractionService.extractFromText({ workspace: detail, sourceTitle: "Chat session memory proposal", text: transcript });
-    return healthRepository.createProposal(workspaceId, source.id, extracted);
-  },
+    const source = await healthRepository.createSource(workspaceId, {
+      type: "import",
+      title: input.title,
+      content: input.content,
+    });
 
-  updateProposal(userId: string, proposalId: string, input: UpdateMemoryProposalInput) {
-    return healthRepository.updateProposal(userId, proposalId, input);
-  },
+    const activeMemories = await healthRepository.listActiveMemories(workspaceId);
+    const system = buildSystemPrompt({ workspace, activeMemories, today: today(), mode: "import" });
 
-  async getProposal(userId: string, proposalId: string) {
-    const proposal = await healthRepository.findProposalForUser(userId, proposalId);
-    return healthRepository.getProposal(proposal.workspaceId, proposal.id);
-  },
+    const openrouter = createOpenRouter({ apiKey });
+    const result = await generateText({
+      model: openrouter.chat(env.AI_MODEL),
+      system,
+      prompt: `Title: ${input.title}\n\n${input.content}`,
+      tools: buildMemoryTools(workspaceId, { sourceId: source.id }) as ToolSet,
+      // Bulk backfills can be 50+ facts; models often emit one save per step,
+      // so keep generous headroom or long imports truncate silently.
+      stopWhen: isStepCount(120),
+    });
 
-  approveProposal(userId: string, proposalId: string) {
-    return healthRepository.approveProposal(userId, proposalId);
+    const memories = await healthRepository.listMemoriesBySource(source.id);
+    const profileUpdated = result.toolCalls.some((call) => call.toolName === "update_profile");
+
+    return { source, memories, profileUpdated };
   },
 };

@@ -11,12 +11,15 @@
     "check-types": "vite build && tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.47",
+    "@caretalk/contracts": "workspace:*",
     "@caretalk/env": "workspace:*",
     "@caretalk/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-router": "^1.168.22",
+    "ai": "^7.0.44",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "lucide-react": "^1.8.0",
@@ -24,8 +27,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "sonner": "^2.0.7",
-    "zod": "catalog:",
-    "@caretalk/contracts": "workspace:*"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@caretalk/config": "workspace:*",

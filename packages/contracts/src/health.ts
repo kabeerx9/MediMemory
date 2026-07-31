@@ -1,361 +1,227 @@
 import { z } from "zod";
 
-export const isoDateSchema = z.string().trim().min(1).max(32);
-export const sourceTypeSchema = z.enum(["manual", "chat_message", "transcript_import", "report_text", "seed"]);
-export const timelineEntryTypeSchema = z.enum([
-  "diagnosis_update",
-  "symptom_update",
-  "medication_change",
-  "report",
-  "doctor_visit",
+// ---------------------------------------------------------------------------
+// Shared primitives
+// ---------------------------------------------------------------------------
+
+export const isoDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+
+export const sourceTypeSchema = z.enum(["chat_session", "import", "manual", "seed"]);
+
+// Soft taxonomy: hints for filtering/display, not a validation gate. The model
+// may emit values outside this list; they are coerced to "note" at the tool
+// boundary rather than rejected.
+export const memoryKindSchema = z.enum([
+  "measurement",
+  "medication",
+  "symptom",
+  "event",
   "appointment",
-  "decision",
-  "treatment",
-  "lab_result",
+  "question",
   "note",
 ]);
-export const medicationStatusSchema = z.enum(["current", "stopped", "paused", "unknown"]);
-export const doctorQuestionStatusSchema = z.enum(["open", "answered", "archived"]);
+export type MemoryKind = z.infer<typeof memoryKindSchema>;
+
 export const chatRoleSchema = z.enum(["user", "assistant", "system"]);
-export const memoryProposalStatusSchema = z.enum(["draft", "approved", "rejected"]);
-export const proposalTargetTypeSchema = z.enum([
-  "timeline",
-  "symptom",
-  "medication",
-  "doctor_question",
-  "report",
-  "current_status",
-]);
-export const proposalOperationSchema = z.enum(["create", "update"]);
 
-export const sourceRefSchema = z.object({
-  sourceId: z.uuid(),
-  excerpt: z.string().optional(),
-});
+// ---------------------------------------------------------------------------
+// Workspace
+// ---------------------------------------------------------------------------
 
-export const healthWorkspaceSchema = z.object({
-  id: z.uuid(),
+export const workspaceSchema = z.object({
+  id: z.string().min(1),
   ownerUserId: z.string().min(1),
   name: z.string().min(1),
   description: z.string().nullable(),
-  diagnosis: z.string().nullable(),
-  currentStatusSummary: z.string().nullable(),
-  currentMedications: z.string().nullable(),
-  currentSymptoms: z.string().nullable(),
-  recentChanges: z.string().nullable(),
-  latestReports: z.string().nullable(),
-  upcomingAppointments: z.string().nullable(),
-  openQuestions: z.string().nullable(),
+  profile: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+export type Workspace = z.infer<typeof workspaceSchema>;
 
 export const createWorkspaceInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).nullable().optional(),
-  diagnosis: z.string().trim().max(2000).nullable().optional(),
+  profile: z.string().trim().max(8000).nullable().optional(),
 });
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceInputSchema>;
 
 export const updateWorkspaceInputSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().trim().max(2000).nullable().optional(),
-  diagnosis: z.string().trim().max(2000).nullable().optional(),
-  currentStatusSummary: z.string().trim().max(4000).nullable().optional(),
-  currentMedications: z.string().trim().max(4000).nullable().optional(),
-  currentSymptoms: z.string().trim().max(4000).nullable().optional(),
-  recentChanges: z.string().trim().max(4000).nullable().optional(),
-  latestReports: z.string().trim().max(4000).nullable().optional(),
-  upcomingAppointments: z.string().trim().max(4000).nullable().optional(),
-  openQuestions: z.string().trim().max(4000).nullable().optional(),
+  profile: z.string().trim().max(8000).nullable().optional(),
+});
+export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInputSchema>;
+
+export const workspacesResponseSchema = z.object({
+  workspaces: z.array(workspaceSchema),
 });
 
-export const healthSourceSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
+// ---------------------------------------------------------------------------
+// Source (immutable raw input)
+// ---------------------------------------------------------------------------
+
+export const sourceSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
   type: sourceTypeSchema,
   title: z.string().nullable(),
   content: z.string().nullable(),
-  metadata: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.string(),
 });
+export type Source = z.infer<typeof sourceSchema>;
 
-export const timelineEntrySchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  entryDate: z.string(),
-  entryType: timelineEntryTypeSchema,
-  title: z.string(),
-  summary: z.string(),
-  details: z.string().nullable(),
-  sourceRefs: z.array(sourceRefSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// ---------------------------------------------------------------------------
+// Memory (atomic fact, append-only with supersession)
+// ---------------------------------------------------------------------------
 
-export const createTimelineEntryInputSchema = z.object({
-  entryDate: isoDateSchema,
-  entryType: timelineEntryTypeSchema.default("note"),
-  title: z.string().trim().min(1).max(180),
-  summary: z.string().trim().min(1).max(3000),
-  details: z.string().trim().max(8000).nullable().optional(),
-  sourceRefs: z.array(sourceRefSchema).optional(),
-});
-
-export const medicationSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  name: z.string(),
-  dose: z.string().nullable(),
-  status: medicationStatusSchema,
-  startDate: z.string().nullable(),
-  stopDate: z.string().nullable(),
-  reasonStarted: z.string().nullable(),
-  reasonStopped: z.string().nullable(),
-  sideEffects: z.string().nullable(),
-  notes: z.string().nullable(),
-  sourceRefs: z.array(sourceRefSchema),
+export const memorySchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  content: z.string(),
+  kind: memoryKindSchema,
+  happenedOn: z.string().nullable(),
+  sourceId: z.string().nullable(),
+  excerpt: z.string().nullable(),
+  supersededById: z.string().nullable(),
+  supersededAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+export type Memory = z.infer<typeof memorySchema>;
 
-export const createMedicationInputSchema = z.object({
-  name: z.string().trim().min(1).max(160),
-  dose: z.string().trim().max(120).nullable().optional(),
-  status: medicationStatusSchema.default("current"),
-  startDate: isoDateSchema.nullable().optional(),
-  stopDate: isoDateSchema.nullable().optional(),
-  reasonStarted: z.string().trim().max(2000).nullable().optional(),
-  reasonStopped: z.string().trim().max(2000).nullable().optional(),
-  sideEffects: z.string().trim().max(3000).nullable().optional(),
-  notes: z.string().trim().max(4000).nullable().optional(),
-  sourceRefs: z.array(sourceRefSchema).optional(),
+export const memoriesResponseSchema = z.object({
+  memories: z.array(memorySchema),
 });
 
-export const symptomSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  name: z.string(),
-  startDate: z.string().nullable(),
-  severity: z.string().nullable(),
-  pattern: z.string().nullable(),
-  possibleTrigger: z.string().nullable(),
-  relatedMedication: z.string().nullable(),
-  notes: z.string().nullable(),
-  sourceRefs: z.array(sourceRefSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+// Manual creation/editing from the UI (the model writes through its tools,
+// not through this input).
+export const createMemoryInputSchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+  kind: memoryKindSchema.default("note"),
+  happenedOn: isoDateSchema.nullable().optional(),
 });
+export type CreateMemoryInput = z.infer<typeof createMemoryInputSchema>;
 
-export const createSymptomInputSchema = z.object({
-  name: z.string().trim().min(1).max(160),
-  startDate: isoDateSchema.nullable().optional(),
-  severity: z.string().trim().max(80).nullable().optional(),
-  pattern: z.string().trim().max(2000).nullable().optional(),
-  possibleTrigger: z.string().trim().max(2000).nullable().optional(),
-  relatedMedication: z.string().trim().max(160).nullable().optional(),
-  notes: z.string().trim().max(4000).nullable().optional(),
-  sourceRefs: z.array(sourceRefSchema).optional(),
+export const updateMemoryInputSchema = z.object({
+  content: z.string().trim().min(1).max(2000).optional(),
+  kind: memoryKindSchema.optional(),
+  happenedOn: isoDateSchema.nullable().optional(),
 });
+export type UpdateMemoryInput = z.infer<typeof updateMemoryInputSchema>;
 
-export const doctorQuestionSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  question: z.string(),
-  context: z.string().nullable(),
-  status: doctorQuestionStatusSchema,
-  answer: z.string().nullable(),
-  sourceRefs: z.array(sourceRefSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// ---------------------------------------------------------------------------
+// Memory tools (the contract between the chat model and the write path).
+// These are the inputSchemas for AI SDK `tool()` definitions on the server and
+// the shape of tool parts rendered as chips on the client.
+// ---------------------------------------------------------------------------
 
-export const createDoctorQuestionInputSchema = z.object({
-  question: z.string().trim().min(1).max(500),
-  context: z.string().trim().max(2000).nullable().optional(),
-  status: doctorQuestionStatusSchema.default("open"),
-  answer: z.string().trim().max(3000).nullable().optional(),
-  sourceRefs: z.array(sourceRefSchema).optional(),
+export const saveMemoryToolInputSchema = z.object({
+  content: z
+    .string()
+    .min(1)
+    .max(2000)
+    .describe("One atomic, self-contained fact. Include the value and units for measurements."),
+  kind: z
+    .string()
+    .describe("One of: measurement, medication, symptom, event, appointment, question, note."),
+  happenedOn: isoDateSchema
+    .nullable()
+    .describe("Date the fact occurred (YYYY-MM-DD), if known. Null if undatable."),
+  supersedesId: z
+    .string()
+    .nullable()
+    .describe(
+      "ID of an existing memory this fact replaces. Only for state changes (dose changed, symptom resolved). Never for new measurements — those accumulate.",
+    ),
 });
+export type SaveMemoryToolInput = z.infer<typeof saveMemoryToolInputSchema>;
 
-export const reportFileSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  filename: z.string(),
-  reportType: z.string().nullable(),
-  reportDate: z.string().nullable(),
-  textContent: z.string(),
-  summary: z.string().nullable(),
-  sourceRefs: z.array(sourceRefSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+export const saveMemoryToolOutputSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  kind: memoryKindSchema,
+  happenedOn: z.string().nullable(),
+  supersededId: z.string().nullable(),
+  supersededContent: z.string().nullable(),
 });
+export type SaveMemoryToolOutput = z.infer<typeof saveMemoryToolOutputSchema>;
 
-export const createReportFileInputSchema = z.object({
-  filename: z.string().trim().min(1).max(240),
-  reportType: z.string().trim().max(120).nullable().optional(),
-  reportDate: isoDateSchema.nullable().optional(),
-  textContent: z.string().trim().min(1).max(60000),
-  summary: z.string().trim().max(6000).nullable().optional(),
-  sourceRefs: z.array(sourceRefSchema).optional(),
+export const updateProfileToolInputSchema = z.object({
+  profile: z
+    .string()
+    .min(1)
+    .max(8000)
+    .describe("The full replacement profile block (markdown). Rewrite, don't append."),
 });
+export type UpdateProfileToolInput = z.infer<typeof updateProfileToolInputSchema>;
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
 
 export const chatSessionSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
   title: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-
-export const chatMessageSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  sessionId: z.uuid(),
-  role: chatRoleSchema,
-  content: z.string(),
-  createdAt: z.string(),
-});
+export type ChatSession = z.infer<typeof chatSessionSchema>;
 
 export const createChatSessionInputSchema = z.object({
   title: z.string().trim().max(180).nullable().optional(),
 });
-export const createChatMessageInputSchema = z.object({
-  role: chatRoleSchema.default("user"),
-  content: z.string().trim().min(1).max(30000),
-});
+export type CreateChatSessionInput = z.infer<typeof createChatSessionInputSchema>;
 
-export const temporaryChatMessageInputSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string().trim().min(1).max(30000),
-});
-export const temporaryChatTurnInputSchema = z.object({
-  message: z.string().trim().min(1).max(30000),
-  messages: z.array(temporaryChatMessageInputSchema).max(80).default([]),
-});
-export const saveChatInputSchema = z.object({
-  title: z.string().trim().max(180).nullable().optional(),
-  messages: z.array(temporaryChatMessageInputSchema).min(1).max(200),
-});
-export const temporaryChatMemoryProposalInputSchema = z.object({
-  title: z.string().trim().min(1).max(180).default("Temporary chat memory proposal"),
-  messages: z.array(temporaryChatMessageInputSchema).min(1).max(200),
-});
-
-export const proposalItemPayloadSchema = z.record(z.string(), z.unknown());
-export const memoryProposalItemSchema = z.object({
-  id: z.uuid(),
-  proposalId: z.uuid(),
-  targetType: proposalTargetTypeSchema,
-  operation: proposalOperationSchema,
-  payload: proposalItemPayloadSchema,
-  sourceExcerpt: z.string().nullable(),
-  confidence: z.number().min(0).max(1).nullable(),
-  included: z.boolean(),
+// Wire format for persisted messages: AI SDK UIMessage parts stored verbatim.
+export const chatMessageSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  sessionId: z.string().min(1),
+  role: chatRoleSchema,
+  parts: z.array(z.unknown()),
   createdAt: z.string(),
 });
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
-export const memoryProposalSchema = z.object({
-  id: z.uuid(),
-  workspaceId: z.uuid(),
-  sourceId: z.uuid().nullable(),
-  status: memoryProposalStatusSchema,
-  shouldSave: z.boolean(),
-  proposalType: z.string(),
-  proposedDate: z.string().nullable(),
-  title: z.string(),
-  summary: z.string(),
-  missingDetails: z.array(z.string()),
-  doctorQuestions: z.array(z.string()),
-  currentStatusPatch: z.record(z.string(), z.unknown()).nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  items: z.array(memoryProposalItemSchema),
+// ---------------------------------------------------------------------------
+// Import (bulk path: same tool semantics, no live conversation)
+// ---------------------------------------------------------------------------
+
+export const importInputSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(60000),
 });
+export type ImportInput = z.infer<typeof importInputSchema>;
 
-export const extractedMemoryProposalSchema = z.object({
-  shouldSave: z.boolean(),
-  proposalType: z.string().min(1),
-  date: z.string().nullable(),
-  title: z.string().min(1),
-  summary: z.string().min(1),
-  items: z.array(z.object({
-    targetType: proposalTargetTypeSchema,
-    operation: proposalOperationSchema.default("create"),
-    payload: proposalItemPayloadSchema,
-    sourceExcerpt: z.string().nullable().optional(),
-    confidence: z.number().min(0).max(1).nullable().optional(),
-  })),
-  missingDetails: z.array(z.string()),
-  doctorQuestions: z.array(z.string()),
-  currentStatusPatch: z.record(z.string(), z.unknown()).nullable(),
+export const importResponseSchema = z.object({
+  source: sourceSchema,
+  memories: z.array(memorySchema),
+  profileUpdated: z.boolean(),
 });
+export type ImportResponse = z.infer<typeof importResponseSchema>;
 
-export const createContextImportInputSchema = z.object({
-  title: z.string().trim().min(1).max(180).default("Transcript import"),
-  content: z.string().trim().min(1).max(100000),
+// ---------------------------------------------------------------------------
+// Route params
+// ---------------------------------------------------------------------------
+
+export const workspaceParamsSchema = z.object({ workspaceId: z.string().min(1) });
+export const chatSessionParamsSchema = z.object({
+  workspaceId: z.string().min(1),
+  sessionId: z.string().min(1),
 });
-
-export const updateMemoryProposalInputSchema = z.object({
-  shouldSave: z.boolean().optional(),
-  proposalType: z.string().trim().min(1).max(120).optional(),
-  proposedDate: z.string().trim().max(32).nullable().optional(),
-  title: z.string().trim().min(1).max(240).optional(),
-  summary: z.string().trim().min(1).max(6000).optional(),
-  missingDetails: z.array(z.string().trim().min(1).max(240)).optional(),
-  doctorQuestions: z.array(z.string().trim().min(1).max(500)).optional(),
-  currentStatusPatch: z.record(z.string(), z.unknown()).nullable().optional(),
-  items: z.array(z.object({
-    id: z.uuid(),
-    included: z.boolean().optional(),
-    payload: proposalItemPayloadSchema.optional(),
-    sourceExcerpt: z.string().trim().max(2000).nullable().optional(),
-    confidence: z.number().min(0).max(1).nullable().optional(),
-  })).optional(),
+export const memoryParamsSchema = z.object({
+  workspaceId: z.string().min(1),
+  memoryId: z.string().min(1),
 });
 
 export const workspaceDetailSchema = z.object({
-  workspace: healthWorkspaceSchema,
-  timeline: z.array(timelineEntrySchema),
-  medications: z.array(medicationSchema),
-  symptoms: z.array(symptomSchema),
-  doctorQuestions: z.array(doctorQuestionSchema),
-  reports: z.array(reportFileSchema),
+  workspace: workspaceSchema,
+  memories: z.array(memorySchema),
   chatSessions: z.array(chatSessionSchema),
-  recentMessages: z.array(chatMessageSchema),
-  proposals: z.array(memoryProposalSchema),
 });
-
-export const workspacesResponseSchema = z.object({
-  workspaces: z.array(healthWorkspaceSchema),
-});
-export const workspaceParamsSchema = z.object({ workspaceId: z.uuid() });
-export const chatSessionParamsSchema = z.object({ workspaceId: z.uuid(), sessionId: z.uuid() });
-export const proposalParamsSchema = z.object({ proposalId: z.uuid() });
-
-export type HealthWorkspace = z.infer<typeof healthWorkspaceSchema>;
 export type WorkspaceDetail = z.infer<typeof workspaceDetailSchema>;
-export type CreateWorkspaceInput = z.infer<typeof createWorkspaceInputSchema>;
-export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInputSchema>;
-export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
-export type CreateTimelineEntryInput = z.infer<typeof createTimelineEntryInputSchema>;
-export type Medication = z.infer<typeof medicationSchema>;
-export type CreateMedicationInput = z.infer<typeof createMedicationInputSchema>;
-export type Symptom = z.infer<typeof symptomSchema>;
-export type CreateSymptomInput = z.infer<typeof createSymptomInputSchema>;
-export type DoctorQuestion = z.infer<typeof doctorQuestionSchema>;
-export type CreateDoctorQuestionInput = z.infer<typeof createDoctorQuestionInputSchema>;
-export type ReportFile = z.infer<typeof reportFileSchema>;
-export type CreateReportFileInput = z.infer<typeof createReportFileInputSchema>;
-export type ChatSession = z.infer<typeof chatSessionSchema>;
-export type ChatMessage = z.infer<typeof chatMessageSchema>;
-export type CreateChatSessionInput = z.infer<typeof createChatSessionInputSchema>;
-export type CreateChatMessageInput = z.infer<typeof createChatMessageInputSchema>;
-export type TemporaryChatMessageInput = z.infer<typeof temporaryChatMessageInputSchema>;
-export type TemporaryChatTurnInput = z.infer<typeof temporaryChatTurnInputSchema>;
-export type SaveChatInput = z.infer<typeof saveChatInputSchema>;
-export type TemporaryChatMemoryProposalInput = z.infer<typeof temporaryChatMemoryProposalInputSchema>;
-export type MemoryProposal = z.infer<typeof memoryProposalSchema>;
-export type ExtractedMemoryProposal = z.infer<typeof extractedMemoryProposalSchema>;
-export type UpdateMemoryProposalInput = z.infer<typeof updateMemoryProposalInputSchema>;
-export type CreateContextImportInput = z.infer<typeof createContextImportInputSchema>;
-export type SourceRef = z.infer<typeof sourceRefSchema>;

@@ -1,23 +1,34 @@
 import {
   chatSessionParamsSchema,
-  createChatMessageInputSchema,
   createChatSessionInputSchema,
-  createContextImportInputSchema,
-  saveChatInputSchema,
-  temporaryChatMemoryProposalInputSchema,
-  temporaryChatTurnInputSchema,
+  createMemoryInputSchema,
   createWorkspaceInputSchema,
-  proposalParamsSchema,
-  updateMemoryProposalInputSchema,
+  importInputSchema,
+  importResponseSchema,
+  memoryParamsSchema,
+  updateMemoryInputSchema,
   updateWorkspaceInputSchema,
   workspaceDetailSchema,
   workspaceParamsSchema,
   workspacesResponseSchema,
 } from "@caretalk/contracts/health";
+import { env } from "@caretalk/env/server";
+import { pipeUIMessageStreamToResponse, type UIMessage } from "ai";
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 
 import { getRequiredUserId } from "../lib/auth";
 import { healthService } from "../services/health-service";
+
+// Loose on purpose: `parts` is a large discriminated union owned by the `ai`
+// package, not something this route should re-validate part-by-part. We only
+// guarantee the envelope shape useChat's DefaultChatTransport actually sends.
+const uiMessageInputSchema = z.object({
+  id: z.string().min(1),
+  role: z.enum(["system", "user", "assistant"]),
+  parts: z.array(z.unknown()),
+});
+const chatStreamInputSchema = z.object({ messages: z.array(uiMessageInputSchema) });
 
 export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/api/v1/workspaces", async (request) => {
@@ -42,69 +53,60 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     return healthService.updateWorkspace(userId, workspaceId, updateWorkspaceInputSchema.parse(request.body));
   });
 
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions", async (request) => {
+  fastify.post("/api/v1/workspaces/:workspaceId/memories", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    return healthService.createMemory(userId, workspaceId, createMemoryInputSchema.parse(request.body));
+  });
+
+  fastify.patch("/api/v1/workspaces/:workspaceId/memories/:memoryId", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId, memoryId } = memoryParamsSchema.parse(request.params);
+    return healthService.updateMemory(userId, workspaceId, memoryId, updateMemoryInputSchema.parse(request.body));
+  });
+
+  fastify.delete("/api/v1/workspaces/:workspaceId/memories/:memoryId", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId, memoryId } = memoryParamsSchema.parse(request.params);
+    return healthService.deleteMemory(userId, workspaceId, memoryId);
+  });
+
+  fastify.post("/api/v1/workspaces/:workspaceId/sessions", async (request) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
     return healthService.createChatSession(userId, workspaceId, createChatSessionInputSchema.parse(request.body));
   });
 
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/respond", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.sendTemporaryChatTurn(userId, workspaceId, temporaryChatTurnInputSchema.parse(request.body));
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/save", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.saveChat(userId, workspaceId, saveChatInputSchema.parse(request.body));
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/propose-memory", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.proposeFromTemporaryChat(userId, workspaceId, temporaryChatMemoryProposalInputSchema.parse(request.body));
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions/:sessionId/messages", async (request) => {
+  fastify.get("/api/v1/workspaces/:workspaceId/sessions/:sessionId/messages", async (request) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId, sessionId } = chatSessionParamsSchema.parse(request.params);
-    return healthService.createChatMessage(userId, workspaceId, sessionId, createChatMessageInputSchema.parse(request.body));
+    const messages = await healthService.listChatMessages(userId, workspaceId, sessionId);
+    return { messages: messages.map((message) => ({ id: message.id, role: message.role, parts: message.parts })) };
   });
 
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions/:sessionId/respond", async (request) => {
+  fastify.post("/api/v1/workspaces/:workspaceId/sessions/:sessionId/chat", async (request, reply) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId, sessionId } = chatSessionParamsSchema.parse(request.params);
-    return healthService.sendChatTurn(userId, workspaceId, sessionId, createChatMessageInputSchema.parse(request.body));
+    const { messages } = chatStreamInputSchema.parse(request.body);
+
+    const stream = await healthService.chatStream(userId, workspaceId, sessionId, messages as unknown as UIMessage[]);
+
+    // reply.hijack() bypasses Fastify's onSend pipeline entirely, so the
+    // Access-Control-* headers @fastify/cors set on the reply object during its
+    // onRequest hook never get flushed to the raw response. Set them by hand so
+    // useChat (credentials: "include", cross-origin) can still read the stream.
+    reply.raw.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+    reply.raw.setHeader("Access-Control-Allow-Credentials", "true");
+    reply.raw.setHeader("Vary", "Origin");
+    reply.hijack();
+
+    await pipeUIMessageStreamToResponse({ response: reply.raw, stream });
   });
 
-  fastify.post("/api/v1/workspaces/:workspaceId/context-imports", async (request) => {
+  fastify.post("/api/v1/workspaces/:workspaceId/import", async (request) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
-    return healthService.importTranscript(userId, workspaceId, createContextImportInputSchema.parse(request.body));
-  });
-
-  fastify.post("/api/v1/workspaces/:workspaceId/chat/sessions/:sessionId/propose-memory", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { workspaceId, sessionId } = chatSessionParamsSchema.parse(request.params);
-    return healthService.proposeFromChat(userId, workspaceId, sessionId);
-  });
-
-  fastify.patch("/api/v1/memory-proposals/:proposalId", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { proposalId } = proposalParamsSchema.parse(request.params);
-    return healthService.updateProposal(userId, proposalId, updateMemoryProposalInputSchema.parse(request.body));
-  });
-
-  fastify.get("/api/v1/memory-proposals/:proposalId", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { proposalId } = proposalParamsSchema.parse(request.params);
-    return healthService.getProposal(userId, proposalId);
-  });
-
-  fastify.post("/api/v1/memory-proposals/:proposalId/approve", async (request) => {
-    const userId = await getRequiredUserId(request);
-    const { proposalId } = proposalParamsSchema.parse(request.params);
-    return healthService.approveProposal(userId, proposalId);
+    const result = await healthService.importDocument(userId, workspaceId, importInputSchema.parse(request.body));
+    return importResponseSchema.parse(result);
   });
 };

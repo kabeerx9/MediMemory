@@ -18,6 +18,17 @@ import { authClient } from "@/lib/auth-client";
 
 export const SERVER_URL = env.EXPO_PUBLIC_SERVER_URL;
 
+// The device's IANA zone, sent with every request that lets the model resolve a
+// relative date. The server runs in UTC; without this, a reading logged at 1am
+// local gets stamped with the previous calendar day.
+export function clientTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 type WorkspacesResponse = { workspaces: Workspace[] };
 type MessagesResponse = { messages: Array<{ id: string; role: string; parts: unknown[] }> };
 
@@ -116,6 +127,6 @@ export const healthApi = {
   importContent: (workspaceId: string, input: ImportInput) =>
     apiFetch<ImportResponse>("/api/v1/workspaces/" + workspaceId + "/import", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ timeZone: clientTimeZone(), ...input }),
     }),
 };

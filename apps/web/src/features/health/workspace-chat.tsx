@@ -5,7 +5,7 @@ import { ArrowUp, Loader2, MessageCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { healthApi } from "@/features/health/api";
+import { clientTimeZone, healthApi } from "@/features/health/api";
 import type { CaretalkUIMessage } from "@/features/health/chat-types";
 import { SaveMemoryChip, UpdateProfileChip } from "@/features/health/memory-chip";
 
@@ -36,6 +36,10 @@ export function WorkspaceChat({
       new DefaultChatTransport<CaretalkUIMessage>({
         api: healthApi.chatUrl(workspaceId, sessionId),
         credentials: "include",
+        // Rides every turn rather than being captured once at mount: a laptop
+        // that travels (or crosses into DST) should date facts by where the
+        // user is now, not where the tab was opened.
+        body: () => ({ timeZone: clientTimeZone() }),
       }),
     [workspaceId, sessionId],
   );

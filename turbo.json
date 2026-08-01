@@ -13,6 +13,19 @@
     "check-types": {
       "dependsOn": ["^check-types"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [],
+      // Turbo 2 runs tasks with a filtered environment, so the opt-in flag has
+      // to be declared or `RUN_DB_TESTS=1 turbo test` silently skips the suite
+      // it was meant to enable.
+      "env": ["RUN_DB_TESTS"]
+    },
+    "eval": {
+      "cache": false,
+      "env": ["RUN_EVALS", "OPENROUTER_API_KEY", "AI_MODEL", "AI_CHAT_MODEL"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

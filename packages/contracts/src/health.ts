@@ -27,6 +27,24 @@ export type MemoryKind = z.infer<typeof memoryKindSchema>;
 
 export const chatRoleSchema = z.enum(["user", "assistant", "system"]);
 
+// IANA zone name, sent by the client so the model resolves "yesterday" against
+// the user's calendar day rather than the server's. Validated by asking Intl to
+// build a formatter with it — the only check that matches what we then do with
+// it, and cheap enough to run per request.
+export const timeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat("en-CA", { timeZone: value });
+      return true;
+    } catch {
+      return false;
+    }
+  }, "unknown IANA time zone");
+
 // ---------------------------------------------------------------------------
 // Workspace
 // ---------------------------------------------------------------------------
@@ -70,6 +88,7 @@ export const sourceSchema = z.object({
   type: sourceTypeSchema,
   title: z.string().nullable(),
   content: z.string().nullable(),
+  contentHash: z.string().nullable(),
   createdAt: z.string(),
 });
 export type Source = z.infer<typeof sourceSchema>;
@@ -78,12 +97,28 @@ export type Source = z.infer<typeof sourceSchema>;
 // Memory (atomic fact, append-only with supersession)
 // ---------------------------------------------------------------------------
 
+// Optional structured shadow of a measurement. Prose in `content` stays
+// authoritative; these are what make a value chartable. `metric` is a
+// lowercase snake_case slug so the same quantity groups across months of
+// varied phrasing ("hb", "haemoglobin", "Hemoglobin" → hemoglobin).
+export const measurementFieldsSchema = z.object({
+  metric: z.string().trim().min(1).max(60).nullable(),
+  value: z.number().finite().nullable(),
+  valueSecondary: z.number().finite().nullable(),
+  unit: z.string().trim().max(20).nullable(),
+});
+export type MeasurementFields = z.infer<typeof measurementFieldsSchema>;
+
 export const memorySchema = z.object({
   id: z.string().min(1),
   workspaceId: z.string().min(1),
   content: z.string(),
   kind: memoryKindSchema,
   happenedOn: z.string().nullable(),
+  metric: z.string().nullable(),
+  value: z.number().nullable(),
+  valueSecondary: z.number().nullable(),
+  unit: z.string().nullable(),
   sourceId: z.string().nullable(),
   excerpt: z.string().nullable(),
   supersededById: z.string().nullable(),
@@ -103,6 +138,10 @@ export const createMemoryInputSchema = z.object({
   content: z.string().trim().min(1).max(2000),
   kind: memoryKindSchema.default("note"),
   happenedOn: isoDateSchema.nullable().optional(),
+  metric: z.string().trim().min(1).max(60).nullable().optional(),
+  value: z.number().finite().nullable().optional(),
+  valueSecondary: z.number().finite().nullable().optional(),
+  unit: z.string().trim().max(20).nullable().optional(),
 });
 export type CreateMemoryInput = z.infer<typeof createMemoryInputSchema>;
 
@@ -110,6 +149,10 @@ export const updateMemoryInputSchema = z.object({
   content: z.string().trim().min(1).max(2000).optional(),
   kind: memoryKindSchema.optional(),
   happenedOn: isoDateSchema.nullable().optional(),
+  metric: z.string().trim().min(1).max(60).nullable().optional(),
+  value: z.number().finite().nullable().optional(),
+  valueSecondary: z.number().finite().nullable().optional(),
+  unit: z.string().trim().max(20).nullable().optional(),
 });
 export type UpdateMemoryInput = z.infer<typeof updateMemoryInputSchema>;
 
@@ -137,6 +180,23 @@ export const saveMemoryToolInputSchema = z.object({
     .describe(
       "ID of an existing memory this fact replaces. Only for state changes (dose changed, symptom resolved). Never for new measurements — those accumulate.",
     ),
+  metric: z
+    .string()
+    .nullable()
+    .describe(
+      "Measurements only: lowercase snake_case name of the quantity, reused verbatim across readings so the series groups (hemoglobin, systolic_bp, weight, hba1c). Null for anything that is not a measurement.",
+    ),
+  value: z
+    .number()
+    .nullable()
+    .describe("Measurements only: the numeric value. Null if the reading is not numeric."),
+  valueSecondary: z
+    .number()
+    .nullable()
+    .describe(
+      "Second half of a paired reading — diastolic for blood pressure (138/86 → value 138, valueSecondary 86). Null otherwise.",
+    ),
+  unit: z.string().nullable().describe("Measurements only: the unit, e.g. g/dL, mmHg, kg."),
 });
 export type SaveMemoryToolInput = z.infer<typeof saveMemoryToolInputSchema>;
 
@@ -145,6 +205,10 @@ export const saveMemoryToolOutputSchema = z.object({
   content: z.string(),
   kind: memoryKindSchema,
   happenedOn: z.string().nullable(),
+  metric: z.string().nullable(),
+  value: z.number().nullable(),
+  valueSecondary: z.number().nullable(),
+  unit: z.string().nullable(),
   supersededId: z.string().nullable(),
   supersededContent: z.string().nullable(),
 });
@@ -158,6 +222,32 @@ export const updateProfileToolInputSchema = z.object({
     .describe("The full replacement profile block (markdown). Rewrite, don't append."),
 });
 export type UpdateProfileToolInput = z.infer<typeof updateProfileToolInputSchema>;
+
+// ---------------------------------------------------------------------------
+// Profile versions (the profile's undo history)
+// ---------------------------------------------------------------------------
+
+export const profileChangedBySchema = z.enum(["model", "user", "restore"]);
+export type ProfileChangedBy = z.infer<typeof profileChangedBySchema>;
+
+export const profileVersionSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  profile: z.string().nullable(),
+  changedBy: profileChangedBySchema,
+  createdAt: z.string(),
+});
+export type ProfileVersion = z.infer<typeof profileVersionSchema>;
+
+export const profileVersionsResponseSchema = z.object({
+  versions: z.array(profileVersionSchema),
+});
+export type ProfileVersionsResponse = z.infer<typeof profileVersionsResponseSchema>;
+
+export const profileVersionParamsSchema = z.object({
+  workspaceId: z.string().min(1),
+  versionId: z.string().min(1),
+});
 
 // ---------------------------------------------------------------------------
 // Chat
@@ -215,6 +305,10 @@ export const importInputSchema = z
     title: z.string().trim().min(1).max(200),
     content: z.string().trim().min(1).max(60000).optional(),
     file: importFileSchema.optional(),
+    timeZone: timeZoneSchema.optional(),
+    // Set after the user confirms an already-imported document. Without it, a
+    // repeat import short-circuits instead of extracting every fact twice.
+    force: z.boolean().optional(),
   })
   .refine((value) => value.content !== undefined || value.file !== undefined, {
     message: "Provide pasted content, a file, or both",
@@ -225,8 +319,30 @@ export const importResponseSchema = z.object({
   source: sourceSchema,
   memories: z.array(memorySchema),
   profileUpdated: z.boolean(),
+  // True when this exact payload was already imported and nothing was run:
+  // `source`/`memories` describe the ORIGINAL import, and the client should
+  // offer to re-run with force.
+  duplicateOf: z.string().nullable(),
 });
 export type ImportResponse = z.infer<typeof importResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Chat request
+// ---------------------------------------------------------------------------
+
+// Loose on `parts`: it's a large discriminated union owned by the `ai` package.
+// We validate the envelope useChat actually sends, nothing deeper.
+export const chatRequestSchema = z.object({
+  messages: z.array(
+    z.object({
+      id: z.string().min(1),
+      role: chatRoleSchema,
+      parts: z.array(z.unknown()),
+    }),
+  ),
+  timeZone: timeZoneSchema.optional(),
+});
+export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
 // ---------------------------------------------------------------------------
 // Export (account-level dump: every workspace the user owns, with all

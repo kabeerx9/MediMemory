@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
 
 import { Button, Card, EmptyState, ErrorNote, Field, PressableCard, SectionLabel, useTheme } from "@/components/ui";
-import { healthApi } from "@/lib/api";
+import { clientTimeZone, healthApi } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { CaretalkUIMessage, friendlyChatError, toUIMessages } from "@/lib/chat-types";
 import { formatDate, formatGroupDate, memoryKinds, useKindMeta } from "@/lib/kind-meta";
@@ -268,6 +268,9 @@ function ChatView({
         // Expo's fetch does. See https://ai-sdk.dev docs for the Expo pattern.
         fetch: expoFetch as unknown as typeof globalThis.fetch,
         headers: { Cookie: authClient.getCookie() },
+        // Per-turn, not per-mount: a phone that travels should date facts by
+        // where it is now.
+        body: () => ({ timeZone: clientTimeZone() }),
       }),
     [workspaceId, sessionId],
   );

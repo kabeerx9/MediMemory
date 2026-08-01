@@ -1,4 +1,4 @@
-import type { ImportFile, ImportResponse } from "@caretalk/contracts/health";
+import type { ImportFile, ImportInput, ImportResponse } from "@caretalk/contracts/health";
 import { importFileMediaTypeSchema } from "@caretalk/contracts/health";
 import { Button } from "@caretalk/ui/components/button";
 import { Input } from "@caretalk/ui/components/input";
@@ -44,25 +44,38 @@ export function ImportPage({ workspaceId }: { workspaceId: string }) {
     setFile({ name: picked.name, mediaType: mediaType.data, dataUrl });
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if ((!content.trim() && !file) || busy) return;
+  // Extracted so the duplicate banner's "Import anyway" can replay the exact
+  // same payload with force set, instead of asking the user to retype it.
+  async function runImport(force: boolean) {
+    const input: ImportInput = {
+      title: title.trim() || (file ? file.name : "Imported notes"),
+      content: content.trim() || undefined,
+      file: file ?? undefined,
+      ...(force ? { force: true } : {}),
+    };
+
     setBusy(true);
     try {
-      const response = await healthApi.importContent(workspaceId, {
-        title: title.trim() || (file ? file.name : "Imported notes"),
-        content: content.trim() || undefined,
-        file: file ?? undefined,
-      });
+      const response = await healthApi.importContent(workspaceId, input);
       setResult(response);
-      setContent("");
-      setTitle("");
-      setFile(null);
+      // A duplicate ran no extraction, so the form stays filled — the user is
+      // one click from confirming rather than one click from having lost it.
+      if (!response.duplicateOf) {
+        setContent("");
+        setTitle("");
+        setFile(null);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not import");
     } finally {
       setBusy(false);
     }
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if ((!content.trim() && !file) || busy) return;
+    void runImport(false);
   }
 
   return (
@@ -149,9 +162,27 @@ export function ImportPage({ workspaceId }: { workspaceId: string }) {
         </Button>
       </form>
 
+      {result?.duplicateOf ? (
+        <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-3">
+          <p className="text-sm text-foreground">
+            You already imported this on {formatDate(result.source.createdAt.slice(0, 10))} — it
+            saved {result.memories.length} {result.memories.length === 1 ? "fact" : "facts"}.
+            Nothing was re-read.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Importing again will extract every fact a second time, as duplicates.
+          </p>
+          <Button disabled={busy} onClick={() => void runImport(true)} size="sm" variant="outline">
+            Import anyway
+          </Button>
+        </div>
+      ) : null}
+
       {result ? (
         <div className="space-y-3 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-foreground">What Caretalk saved</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            {result.duplicateOf ? "What that import saved" : "What Caretalk saved"}
+          </h2>
           {result.profileUpdated ? (
             <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
               <NotebookPen className="size-3.5" />

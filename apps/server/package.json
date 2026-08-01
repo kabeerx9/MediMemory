@@ -7,7 +7,10 @@
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.mjs"
+    "start": "node dist/index.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "eval": "vitest run --config vitest.eval.config.ts"
   },
   "dependencies": {
     "@caretalk/auth": "workspace:*",
@@ -29,6 +32,7 @@
     "esbuild": "^0.28.1",
     "tsdown": "^0.21.9",
     "tsx": "^4.19.2",
-    "typescript": "^6"
+    "typescript": "^6",
+    "vitest": "^4.1.10"
   }
 }

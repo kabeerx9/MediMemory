@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type {
   CreateChatSessionInput,
   CreateMemoryInput,
@@ -8,7 +7,6 @@ import type {
   UpdateMemoryInput,
   UpdateWorkspaceInput,
 } from "@caretalk/contracts/health";
-import { env } from "@caretalk/env/server";
 import {
   convertToModelMessages,
   generateText,
@@ -20,22 +18,21 @@ import {
   type UIMessageChunk,
 } from "ai";
 
-import { HttpError } from "../lib/http-error";
+import { importContentHash } from "../lib/import-hash";
 import { buildMemoryTools } from "../lib/memory-tools";
+import { buildModel } from "../lib/model";
 import { buildSystemPrompt } from "../lib/system-prompt";
+import { resolveTimeZone, todayIn } from "../lib/time";
 import { healthRepository } from "../repositories/health-repository";
 
-function requireApiKey(): string {
-  const apiKey = env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new HttpError(503, "OPENROUTER_API_KEY not configured", "AI_NOT_CONFIGURED");
-  }
-  return apiKey;
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
+// A chat turn can legitimately carry several facts ("bp was 138/86, he skipped
+// the evening dose, and the cardiologist moved to the 12th") and models emit
+// roughly one save per step. Eight steps truncated those messages silently —
+// the earlier facts landed, the last ones vanished with no error anywhere.
+const CHAT_MAX_STEPS = 20;
+// Bulk backfills can be 50+ facts, so keep generous headroom here or long
+// imports stop halfway.
+const IMPORT_MAX_STEPS = 120;
 
 export const healthService = {
   listWorkspaces(userId: string) {
@@ -52,6 +49,13 @@ export const healthService = {
   },
   getWorkspaceDetail(userId: string, workspaceId: string) {
     return healthRepository.getWorkspaceDetail(userId, workspaceId);
+  },
+
+  listProfileVersions(userId: string, workspaceId: string) {
+    return healthRepository.listProfileVersions(userId, workspaceId);
+  },
+  restoreProfileVersion(userId: string, workspaceId: string, versionId: string) {
+    return healthRepository.restoreProfileVersion(userId, workspaceId, versionId);
   },
 
   async exportAccount(userId: string) {
@@ -100,17 +104,41 @@ export const healthService = {
     workspaceId: string,
     sessionId: string,
     uiMessages: UIMessage[],
+    timeZoneCandidate?: string,
   ): Promise<ReadableStream<UIMessageChunk>> {
     const workspace = await healthRepository.getWorkspace(userId, workspaceId);
     await healthRepository.getChatSession(workspaceId, sessionId);
-    const apiKey = requireApiKey();
+    const model = buildModel("chat");
 
+    const timeZone = resolveTimeZone(timeZoneCandidate);
     const activeMemories = await healthRepository.listActiveMemories(workspaceId);
-    const system = buildSystemPrompt({ workspace, activeMemories, today: today(), mode: "chat" });
+    const system = buildSystemPrompt({
+      workspace,
+      activeMemories,
+      today: todayIn(timeZone),
+      timeZone,
+      mode: "chat",
+    });
 
-    const openrouter = createOpenRouter({ apiKey });
+    // Persist the user's message BEFORE the model runs, not in onFinish.
+    // Tool calls commit to Postgres mid-stream, so if the client disconnects or
+    // the function times out, the old ordering left facts in the memory rail
+    // with no conversation explaining them and no chip to undo from. Writing
+    // the prompt up front means the transcript can lose the reply, never the
+    // question.
+    const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
+    if (lastUserMessage) {
+      await healthRepository.saveChatMessages(workspaceId, sessionId, [
+        {
+          id: lastUserMessage.id,
+          role: "user" as const,
+          parts: lastUserMessage.parts as unknown[],
+        },
+      ]);
+    }
+
     const result = streamText({
-      model: openrouter.chat(env.AI_MODEL),
+      model,
       system,
       messages: await convertToModelMessages(uiMessages),
       // Cast to the (portable, re-exported) ToolSet type rather than letting
@@ -120,7 +148,7 @@ export const healthService = {
       // nameable" check (TS2883) — anchored at memory-tools.ts, a file this
       // change may not touch.
       tools: buildMemoryTools(workspaceId) as ToolSet,
-      stopWhen: isStepCount(8),
+      stopWhen: isStepCount(CHAT_MAX_STEPS),
     });
 
     return toUIMessageStream({
@@ -128,21 +156,50 @@ export const healthService = {
       originalMessages: uiMessages,
       generateMessageId: () => randomUUID(),
       onFinish: async ({ responseMessage }) => {
-        const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
-        const toSave = [
-          ...(lastUserMessage
-            ? [{ id: lastUserMessage.id, role: "user" as const, parts: lastUserMessage.parts as unknown[] }]
-            : []),
-          { id: responseMessage.id, role: "assistant" as const, parts: responseMessage.parts as unknown[] },
-        ];
-        await healthRepository.saveChatMessages(workspaceId, sessionId, toSave);
+        // Swallow-and-log rather than throw: this runs after the response has
+        // been streamed to the browser, so throwing here can't surface an error
+        // to the user — it only produces an unhandled rejection that hides why
+        // a reply went missing on reload.
+        try {
+          await healthRepository.saveChatMessages(workspaceId, sessionId, [
+            {
+              id: responseMessage.id,
+              role: "assistant" as const,
+              parts: responseMessage.parts as unknown[],
+            },
+          ]);
+        } catch (error) {
+          console.error("Failed to persist assistant message", {
+            workspaceId,
+            sessionId,
+            messageId: responseMessage.id,
+            error,
+          });
+        }
       },
     });
   },
 
   async importDocument(userId: string, workspaceId: string, input: ImportInput) {
     const workspace = await healthRepository.getWorkspace(userId, workspaceId);
-    const apiKey = requireApiKey();
+    const model = buildModel("import");
+
+    // Idempotency check before any model spend. Re-importing a document the
+    // model has already read would duplicate every fact in it, and nothing
+    // downstream can tell the copies apart — the injected list makes duplicate
+    // detection advisory, not enforced.
+    const contentHash = importContentHash(input);
+    if (!input.force) {
+      const existing = await healthRepository.findSourceByHash(workspaceId, contentHash);
+      if (existing) {
+        return {
+          source: existing,
+          memories: await healthRepository.listMemoriesBySource(existing.id),
+          profileUpdated: false,
+          duplicateOf: existing.id,
+        };
+      }
+    }
 
     // Attached files are ephemeral: the source row records that a file was the
     // origin, but the bytes only exist for the duration of this model call.
@@ -152,10 +209,21 @@ export const healthService = {
       content:
         input.content ??
         (input.file ? `[Imported from file: ${input.file.name} — file not retained]` : null),
+      // A forced re-import intentionally leaves the hash off: the unique index
+      // is on (workspace, hash), so stamping it twice would collide, and the
+      // original row stays the one that answers "have I imported this?".
+      contentHash: input.force ? null : contentHash,
     });
 
+    const timeZone = resolveTimeZone(input.timeZone);
     const activeMemories = await healthRepository.listActiveMemories(workspaceId);
-    const system = buildSystemPrompt({ workspace, activeMemories, today: today(), mode: "import" });
+    const system = buildSystemPrompt({
+      workspace,
+      activeMemories,
+      today: todayIn(timeZone),
+      timeZone,
+      mode: "import",
+    });
 
     const userContent: Array<
       | { type: "text"; text: string }
@@ -174,20 +242,17 @@ export const healthService = {
       text: [`Title: ${input.title}`, input.content].filter(Boolean).join("\n\n"),
     });
 
-    const openrouter = createOpenRouter({ apiKey });
     const result = await generateText({
-      model: openrouter.chat(env.AI_MODEL),
+      model,
       system,
       messages: [{ role: "user", content: userContent }],
       tools: buildMemoryTools(workspaceId, { sourceId: source.id }) as ToolSet,
-      // Bulk backfills can be 50+ facts; models often emit one save per step,
-      // so keep generous headroom or long imports truncate silently.
-      stopWhen: isStepCount(120),
+      stopWhen: isStepCount(IMPORT_MAX_STEPS),
     });
 
     const memories = await healthRepository.listMemoriesBySource(source.id);
     const profileUpdated = result.toolCalls.some((call) => call.toolName === "update_profile");
 
-    return { source, memories, profileUpdated };
+    return { source, memories, profileUpdated, duplicateOf: null };
   },
 };

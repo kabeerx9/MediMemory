@@ -8,6 +8,7 @@ import type {
   ImportInput,
   ImportResponse,
   Memory,
+  ProfileVersionsResponse,
   UpdateMemoryInput,
   UpdateWorkspaceInput,
   Workspace,
@@ -15,6 +16,17 @@ import type {
 } from "@caretalk/contracts/health";
 
 export const SERVER_URL = env.VITE_SERVER_URL;
+
+// The browser's IANA zone, sent with every request that lets the model resolve
+// a relative date. The server runs in UTC, so without this "yesterday" is the
+// server's yesterday — off by a day for anyone far enough from Greenwich.
+export function clientTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type WorkspacesResponse = { workspaces: Workspace[] };
 type MessagesResponse = { messages: Array<{ id: string; role: string; parts: unknown[] }> };
@@ -76,6 +88,15 @@ export const healthApi = {
       body: JSON.stringify(input),
     }),
 
+  listProfileVersions: (workspaceId: string) =>
+    apiFetch<ProfileVersionsResponse>("/api/v1/workspaces/" + workspaceId + "/profile-versions"),
+
+  restoreProfileVersion: (workspaceId: string, versionId: string) =>
+    apiFetch<Workspace>(
+      "/api/v1/workspaces/" + workspaceId + "/profile-versions/" + versionId + "/restore",
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+
   createMemory: (workspaceId: string, input: CreateMemoryInput) =>
     apiFetch<Memory>("/api/v1/workspaces/" + workspaceId + "/memories", {
       method: "POST",
@@ -110,6 +131,6 @@ export const healthApi = {
   importContent: (workspaceId: string, input: ImportInput) =>
     apiFetch<ImportResponse>("/api/v1/workspaces/" + workspaceId + "/import", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ timeZone: clientTimeZone(), ...input }),
     }),
 };

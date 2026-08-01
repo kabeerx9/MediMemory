@@ -1,4 +1,5 @@
 import {
+  chatRequestSchema,
   chatSessionParamsSchema,
   createChatSessionInputSchema,
   createMemoryInputSchema,
@@ -8,6 +9,8 @@ import {
   importInputSchema,
   importResponseSchema,
   memoryParamsSchema,
+  profileVersionParamsSchema,
+  profileVersionsResponseSchema,
   updateMemoryInputSchema,
   updateWorkspaceInputSchema,
   workspaceDetailSchema,
@@ -16,24 +19,32 @@ import {
 } from "@caretalk/contracts/health";
 import { env } from "@caretalk/env/server";
 import { pipeUIMessageStreamToResponse, type UIMessage } from "ai";
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { getRequiredUserId } from "../lib/auth";
 import { buildExportMarkdown } from "../lib/export-markdown";
+import { HttpError } from "../lib/http-error";
+import { RateLimiter } from "../lib/rate-limit";
 import { healthService } from "../services/health-service";
 
-// Loose on purpose: `parts` is a large discriminated union owned by the `ai`
-// package, not something this route should re-validate part-by-part. We only
-// guarantee the envelope shape useChat's DefaultChatTransport actually sends.
-const uiMessageInputSchema = z.object({
-  id: z.string().min(1),
-  role: z.enum(["system", "user", "assistant"]),
-  parts: z.array(z.unknown()),
-});
-const chatStreamInputSchema = z.object({ messages: z.array(uiMessageInputSchema) });
-
 const exportQuerySchema = z.object({ format: exportFormatSchema.default("json") });
+
+// Shared by the two routes that call a metered model API. Reads are unmetered
+// and stay unlimited.
+const aiLimiter = new RateLimiter(env.AI_RATE_LIMIT, env.AI_RATE_LIMIT_WINDOW_MS);
+
+function enforceAiRateLimit(userId: string, request: FastifyRequest) {
+  const result = aiLimiter.check(userId);
+  if (!result.allowed) {
+    request.log.warn({ userId }, "AI rate limit hit");
+    throw new HttpError(
+      429,
+      `Too many AI requests — try again in ${result.retryAfterSeconds}s.`,
+      "RATE_LIMITED",
+    );
+  }
+}
 
 export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/api/v1/workspaces", async (request) => {
@@ -84,6 +95,26 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
     return healthService.updateWorkspace(userId, workspaceId, updateWorkspaceInputSchema.parse(request.body));
   });
 
+  // Profile history. The profile is model-rewritten and injected into every
+  // prompt, so a silent bad rewrite degrades every later turn — these two
+  // routes are the way back.
+  fastify.get("/api/v1/workspaces/:workspaceId/profile-versions", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId } = workspaceParamsSchema.parse(request.params);
+    return profileVersionsResponseSchema.parse({
+      versions: await healthService.listProfileVersions(userId, workspaceId),
+    });
+  });
+
+  fastify.post(
+    "/api/v1/workspaces/:workspaceId/profile-versions/:versionId/restore",
+    async (request) => {
+      const userId = await getRequiredUserId(request);
+      const { workspaceId, versionId } = profileVersionParamsSchema.parse(request.params);
+      return healthService.restoreProfileVersion(userId, workspaceId, versionId);
+    },
+  );
+
   fastify.post("/api/v1/workspaces/:workspaceId/memories", async (request) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
@@ -117,10 +148,17 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post("/api/v1/workspaces/:workspaceId/sessions/:sessionId/chat", async (request, reply) => {
     const userId = await getRequiredUserId(request);
+    enforceAiRateLimit(userId, request);
     const { workspaceId, sessionId } = chatSessionParamsSchema.parse(request.params);
-    const { messages } = chatStreamInputSchema.parse(request.body);
+    const { messages, timeZone } = chatRequestSchema.parse(request.body);
 
-    const stream = await healthService.chatStream(userId, workspaceId, sessionId, messages as unknown as UIMessage[]);
+    const stream = await healthService.chatStream(
+      userId,
+      workspaceId,
+      sessionId,
+      messages as unknown as UIMessage[],
+      timeZone,
+    );
 
     // reply.hijack() bypasses Fastify's onSend pipeline entirely, so the
     // Access-Control-* headers @fastify/cors set on the reply object during its
@@ -136,6 +174,7 @@ export const healthMemoryRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post("/api/v1/workspaces/:workspaceId/import", async (request) => {
     const userId = await getRequiredUserId(request);
+    enforceAiRateLimit(userId, request);
     const { workspaceId } = workspaceParamsSchema.parse(request.params);
     const result = await healthService.importDocument(userId, workspaceId, importInputSchema.parse(request.body));
     return importResponseSchema.parse(result);

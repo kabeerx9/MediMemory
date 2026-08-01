@@ -12,21 +12,27 @@ import type { Memory, Workspace } from "@caretalk/contracts/health";
 // 3. Measurements accumulate, states supersede. Stated in the tool description
 //    AND here, because this is the one policy that silently destroys data when
 //    the model gets it wrong.
+// 4. Block order is load-bearing for prompt caching: stable text (header,
+//    rules) first, volatile text (profile, memory list) last, so a new memory
+//    invalidates only the tail of the cached prefix. Today's date sits in the
+//    header and does break the whole prefix — but only once a day, which is
+//    cheaper than re-deriving it further down.
 
 export function buildSystemPrompt(input: {
   workspace: Workspace;
   activeMemories: Memory[];
   today: string; // YYYY-MM-DD — passed in so date handling is testable
+  timeZone: string; // resolved from the client, so "yesterday" is the user's
   mode: "chat" | "import";
 }) {
-  const { workspace, activeMemories, today, mode } = input;
+  const { workspace, activeMemories, today, timeZone, mode } = input;
 
   const header = [
     "You are the assistant inside a personal longitudinal health-memory app.",
     "The user tracks the health journey of one person per workspace (often a family member).",
     "You are not a doctor: no diagnosis, no treatment decisions. If something sounds urgent, say clearly that they should contact a medical professional.",
     "Be practical, warm, and concise. Ground every answer in the memory below; say so when memory has no answer rather than guessing.",
-    `Today's date: ${today}.`,
+    `Today's date: ${today} (the user's local calendar day, time zone ${timeZone}). Resolve every relative date against this, never against UTC.`,
   ];
 
   const memoryRules = [
@@ -36,6 +42,7 @@ export function buildSystemPrompt(input: {
     "DO NOT SAVE: the user's questions to you, worry or speculation, your own explanations, general medical knowledge, duplicates of existing memories (check the list below first).",
     "A message can contain both. 'His hemoglobin is 11.6, what does that mean?' → save the measurement, answer the question, don't save the question.",
     "Dates: resolve relative dates ('yesterday', 'last Tuesday') against today's date before saving. If the user says when it happened, set happenedOn; otherwise leave it null.",
+    "MEASUREMENTS: whenever a fact carries a number, also fill metric (lowercase snake_case, reused verbatim across readings so the series groups — hemoglobin, systolic_bp, weight, hba1c), value, and unit. Blood pressure is ONE memory: value = systolic, valueSecondary = diastolic. Leave all four null on non-numeric facts. The prose in content must still stand alone.",
     "SUPERSEDE vs ACCUMULATE — the one rule that must never be violated: measurements and lab values ALWAYS accumulate (new save, no supersedesId) because the series over time is the point. Use supersedesId ONLY when a fact replaces a prior state: dose changed, medication stopped, symptom resolved, appointment rescheduled. When superseding, reference the memory ID from the list below.",
     "If a new fact contradicts an existing memory and you are not sure it's a state change (e.g. conflicting dose reports), save the new fact WITHOUT superseding and ask the user one short clarifying question.",
     "PROFILE (call update_profile): keep the profile a current-state snapshot — diagnosis, current treatment, latest status, next appointment. Update after meaningful state changes, not every message. Full rewrite, markdown, under ~30 lines.",
@@ -56,15 +63,18 @@ export function buildSystemPrompt(input: {
     workspace.profile ?? "(no profile yet — create one with update_profile once you know the basics)",
   ].filter((line): line is string => line !== null);
 
+  // The trailing [metric] tag is what keeps a series from fragmenting: the
+  // model sees the slug it used for this quantity last time and reuses it,
+  // instead of inventing a near-miss synonym on every reading.
   const memoryBlock = [
-    "## Active memories (id | happened | kind | fact)",
+    "## Active memories (id | happened | kind | fact [metric])",
     activeMemories.length === 0
       ? "(none yet)"
       : activeMemories
-          .map(
-            (memory) =>
-              `${memory.id} | ${memory.happenedOn ?? "undated"} | ${memory.kind} | ${memory.content}`,
-          )
+          .map((memory) => {
+            const base = `${memory.id} | ${memory.happenedOn ?? "undated"} | ${memory.kind} | ${memory.content}`;
+            return memory.metric ? `${base} [${memory.metric}]` : base;
+          })
           .join("\n"),
   ];
 

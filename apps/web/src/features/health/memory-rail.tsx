@@ -9,6 +9,7 @@ import { healthApi } from "@/features/health/api";
 import { kindMeta, memoryKinds } from "@/features/health/kind-meta";
 import { MemoryRow } from "@/features/health/memory-row";
 import { ProfileCard } from "@/features/health/profile-card";
+import { TrendsSection } from "@/features/health/trends";
 
 type MemoryGroup = { date: string | null; items: Memory[] };
 
@@ -57,6 +58,8 @@ export function MemoryRail({
       <AddMemoryForm workspaceId={workspace.id} onCreated={onMemoriesChanged} />
 
       <ProfileCard onUpdated={onWorkspaceUpdated} workspace={workspace} />
+
+      <TrendsSection memories={memories} />
 
       <Separator />
 

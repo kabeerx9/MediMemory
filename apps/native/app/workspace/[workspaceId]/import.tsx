@@ -38,14 +38,28 @@ export default function ImportScreen() {
   const [result, setResult] = useState<ImportResponse | null>(null);
 
   const importMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (force: boolean) =>
       healthApi.importContent(workspaceId, {
         title: title.trim() || (file ? file.name : "Imported notes"),
         content: content.trim() || undefined,
         file: file ?? undefined,
+        ...(force ? { force: true } : {}),
       }),
     onSuccess: (response) => {
       setResult(response);
+      // The server recognised this exact payload and ran no extraction, so the
+      // form stays filled and the user confirms rather than retypes.
+      if (response.duplicateOf) {
+        Alert.alert(
+          "Already imported",
+          `This was imported before and saved ${response.memories.length} facts. Importing again duplicates all of them.`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Import anyway", onPress: () => importMutation.mutate(true) },
+          ],
+        );
+        return;
+      }
       setContent("");
       setTitle("");
       setFile(null);
@@ -205,7 +219,7 @@ export default function ImportScreen() {
           label="Save to memory"
           loading={importMutation.isPending}
           disabled={!canSubmit}
-          onPress={() => importMutation.mutate()}
+          onPress={() => importMutation.mutate(false)}
           style={styles.submit}
         />
 

@@ -1,52 +1,44 @@
 import type { Workspace } from "@caretalk/contracts/health";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { File, Paths } from "expo-file-system";
-import { router, Stack } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 
+import { Glyph } from "@/components/kind-icon";
+import { Button, EmptyState, ErrorNote, Eyebrow, Field, tap, useTheme } from "@/components/ui";
 import { healthApi } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
-import { type AppTheme, radius, space, type } from "@/lib/theme";
-import {
-  Button,
-  Card,
-  EmptyState,
-  ErrorNote,
-  Field,
-  PressableCard,
-  Screen,
-  useTheme,
-} from "@/components/ui";
+import { relativeTime } from "@/lib/record";
+import { radius, space, thread, type, type AppTheme } from "@/theme/tokens";
+
+// One entry per person you're tracking. Each row is a stub of that person's
+// thread — the same line the record is drawn on, so the two screens read as
+// one continuous idea rather than a list that happens to open a detail view.
 
 export default function Workspaces() {
   const theme = useTheme();
+  const reduced = useReducedMotion();
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const workspacesQuery = useQuery({
+  const workspaces = useQuery({
     queryKey: ["workspaces"],
     queryFn: async () => (await healthApi.listWorkspaces()).workspaces,
   });
 
   useFocusEffect(
     useCallback(() => {
-      void workspacesQuery.refetch();
+      void workspaces.refetch();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
 
-  async function signOut() {
-    await authClient.signOut();
-    router.replace("/login");
-  }
-
-  // Account-wide export = full backup of every workspace. The per-workspace
-  // export (the one you paste into an external chat) lives on the workspace
-  // screen, where the scope is unambiguous.
+  // Account-wide export = a full backup. The per-workspace export, scoped to
+  // one person, lives inside the workspace where the scope is unambiguous.
   async function exportAll() {
     if (exporting) return;
     setExporting(true);
@@ -67,265 +59,206 @@ export default function Workspaces() {
   }
 
   return (
-    <Screen edges={["bottom"]} scroll>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ backgroundColor: theme.paper }}
+      contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl }}
+    >
       <Stack.Screen
         options={{
           headerRight: () => (
-            <View style={styles.headerActions}>
+            <View style={{ flexDirection: "row", gap: space.lg, alignItems: "center" }}>
               <Pressable
-                disabled={exporting}
-                onPress={() => void exportAll()}
-                style={styles.headerAction}
+                accessibilityLabel="Export everything"
                 accessibilityRole="button"
-                accessibilityLabel="Back up all workspaces"
+                hitSlop={10}
+                disabled={exporting}
+                onPress={() => {
+                  tap();
+                  void exportAll();
+                }}
               >
                 {exporting ? (
-                  <ActivityIndicator color={theme.primary} size="small" />
+                  <ActivityIndicator size="small" color={theme.textMuted as string} />
                 ) : (
-                  <>
-                    <Ionicons color={theme.primary} name="cloud-upload-outline" size={16} />
-                    <Text style={[type.label as object, { color: theme.primary }]}>Back up all</Text>
-                  </>
+                  <Glyph sf="square.and.arrow.up" md="export-variant" color={theme.text} size={19} />
                 )}
               </Pressable>
               <Pressable
-                onPress={() => void signOut()}
-                style={styles.headerAction}
-                accessibilityRole="button"
                 accessibilityLabel="Sign out"
+                accessibilityRole="button"
+                hitSlop={10}
+                onPress={() => {
+                  tap();
+                  void authClient.signOut().then(() => router.replace("/login"));
+                }}
               >
-                <Text style={[type.label as object, { color: theme.textMuted }]}>Sign out</Text>
+                <Glyph
+                  sf="rectangle.portrait.and.arrow.right"
+                  md="logout"
+                  color={theme.text}
+                  size={19}
+                />
               </Pressable>
             </View>
           ),
         }}
       />
 
-      <View style={styles.header}>
-        <Text style={[type.display as object, { color: theme.text }]}>Workspaces</Text>
-        <Text style={[type.callout as object, { color: theme.textMuted }]}>
-          One workspace per person or health journey you're keeping track of.
-        </Text>
-      </View>
-
-      {workspacesQuery.isLoading ? (
-        <ActivityIndicator color={theme.primary} style={styles.spinner} />
-      ) : workspacesQuery.isError ? (
+      {workspaces.isLoading ? (
+        <ActivityIndicator color={theme.textFaint as string} style={{ paddingTop: space.xxl }} />
+      ) : workspaces.error ? (
         <ErrorNote
           message={
-            workspacesQuery.error instanceof Error
-              ? workspacesQuery.error.message
-              : "Could not load workspaces."
+            workspaces.error instanceof Error ? workspaces.error.message : "Could not load workspaces"
           }
         />
-      ) : workspacesQuery.data && workspacesQuery.data.length === 0 ? (
-        !creating ? (
-          <EmptyState
-            icon="people-outline"
-            title="No workspaces yet"
-            body="One workspace per person or health journey you're keeping track of. Create one to start."
-            action={
-              <Button
-                icon="add"
-                label="Create workspace"
-                onPress={() => setCreating(true)}
-                variant="primary"
-              />
-            }
-          />
-        ) : null
+      ) : workspaces.data?.length === 0 && !creating ? (
+        <EmptyState
+          title="Start a record"
+          body="One workspace per person you're tracking — a parent, a pregnancy, your own condition."
+          action={<Button title="New workspace" onPress={() => setCreating(true)} icon={{ sf: "plus", md: "plus" }} />}
+        />
       ) : (
-        <View style={styles.list}>
-          {workspacesQuery.data?.map((workspace) => (
-            <WorkspaceCard key={workspace.id} theme={theme} workspace={workspace} />
+        <View>
+          {workspaces.data?.map((workspace, index) => (
+            <Animated.View
+              key={workspace.id}
+              entering={reduced ? undefined : FadeInDown.delay(index * 40).duration(280)}
+            >
+              <WorkspaceRow workspace={workspace} theme={theme} />
+            </Animated.View>
           ))}
         </View>
       )}
 
       {creating ? (
-        <CreateWorkspaceForm onCancel={() => setCreating(false)} />
-      ) : workspacesQuery.data && workspacesQuery.data.length > 0 ? (
+        <CreateWorkspace
+          onDone={() => {
+            setCreating(false);
+            void workspaces.refetch();
+          }}
+        />
+      ) : workspaces.data?.length ? (
         <Button
-          icon="add"
-          label="New workspace"
-          onPress={() => setCreating(true)}
+          title="New workspace"
           variant="secondary"
-          full
+          icon={{ sf: "plus", md: "plus" }}
+          onPress={() => setCreating(true)}
         />
       ) : null}
-    </Screen>
+    </ScrollView>
   );
 }
 
-// Relative, human-readable timestamps read calmer than a raw date — "Updated
-// 3 days ago" instead of "Updated 7/28/2026". Falls back to a short date once
-// it's far enough back that "N weeks ago" stops being useful.
-function relativeTime(iso: string): string {
-  const then = new Date(iso);
-  const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const dayDiff = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
-
-  if (dayDiff <= 0) return "Updated today";
-  if (dayDiff === 1) return "Updated yesterday";
-  if (dayDiff < 7) return `Updated ${dayDiff} days ago`;
-  if (dayDiff < 30) {
-    const weeks = Math.round(dayDiff / 7);
-    return `Updated ${weeks} week${weeks === 1 ? "" : "s"} ago`;
-  }
-  return `Updated ${then.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
-}
-
-function WorkspaceCard({ workspace, theme }: { workspace: Workspace; theme: AppTheme }) {
-  const initial = workspace.name.trim().charAt(0).toUpperCase() || "?";
+function WorkspaceRow({ workspace, theme }: { workspace: Workspace; theme: AppTheme }) {
+  // The first line of the profile is the one thing worth surfacing here:
+  // "where is this person right now", not when the row was last touched.
+  const summary = workspace.profile
+    ?.split("\n")
+    // Strip markdown the model writes into the profile: leading heading and
+    // bullet markers, then inline bold/italic runs. Without the second pass a
+    // line like "**Name:** Myself" renders its asterisks verbatim.
+    .map((line) =>
+      line
+        .replace(/^[#*\-\s]+/, "")
+        .replace(/[*_]{1,2}/g, "")
+        .trim(),
+    )
+    .find((line) => line.length > 0);
 
   return (
-    <PressableCard
-      onPress={() =>
-        router.push({ pathname: "/workspace/[workspaceId]", params: { workspaceId: workspace.id } })
-      }
-      style={styles.card}
+    <Link
+      href={{ pathname: "/workspace/[workspaceId]", params: { workspaceId: workspace.id } }}
+      asChild
+      onPress={() => tap()}
     >
-      <View style={styles.cardRow}>
-        <View style={[styles.monogram, { backgroundColor: theme.primarySoft }]}>
-          <Text style={[type.heading as object, { color: theme.primary }]}>{initial}</Text>
+      <Pressable accessibilityRole="button" style={{ flexDirection: "row" }}>
+        {/* The same spine the record is drawn on, in stub form. */}
+        <View style={{ width: thread.gutter }}>
+          <View
+            style={{
+              position: "absolute",
+              left: thread.rail - 0.5,
+              top: 0,
+              bottom: 0,
+              width: 1,
+              backgroundColor: theme.spineFaint,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              left: thread.rail - thread.node / 2,
+              top: 15,
+              width: thread.node,
+              height: thread.node,
+              borderRadius: thread.node / 2,
+              backgroundColor: theme.text,
+            }}
+          />
         </View>
 
-        <View style={styles.cardBody}>
-          <Text style={[type.title as object, { color: theme.text }]}>{workspace.name}</Text>
-          <Text
-            style={[type.callout as object, { color: theme.textMuted }]}
-            numberOfLines={2}
-          >
-            {workspace.description || "No description yet."}
-          </Text>
-          <Text style={[type.caption as object, { color: theme.textFaint }]}>
-            {relativeTime(workspace.updatedAt)}
-          </Text>
+        <View style={{ flex: 1, paddingVertical: space.md, gap: space.xs }}>
+          <Text style={[type.title, { color: theme.text }]}>{workspace.name}</Text>
+          {summary ? (
+            <Text numberOfLines={2} style={[type.callout, { color: theme.textMuted }]}>
+              {summary}
+            </Text>
+          ) : workspace.description ? (
+            <Text numberOfLines={2} style={[type.callout, { color: theme.textMuted }]}>
+              {workspace.description}
+            </Text>
+          ) : null}
+          <Eyebrow>{relativeTime(workspace.updatedAt)}</Eyebrow>
         </View>
-
-        <Ionicons color={theme.textFaint} name="chevron-forward" size={18} />
-      </View>
-    </PressableCard>
+      </Pressable>
+    </Link>
   );
 }
 
-function CreateWorkspaceForm({ onCancel }: { onCancel: () => void }) {
+function CreateWorkspace({ onDone }: { onDone: () => void }) {
   const theme = useTheme();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const queryClient = useQueryClient();
 
-  const createMutation = useMutation({
+  const create = useMutation({
     mutationFn: () =>
-      healthApi.createWorkspace({
-        name: name.trim(),
-        description: description.trim() || null,
-      }),
-    onSuccess: (workspace) => {
-      queryClient.setQueryData<Workspace[]>(["workspaces"], (prev) =>
-        prev ? [workspace, ...prev] : [workspace],
-      );
-      setName("");
-      setDescription("");
-      router.push({ pathname: "/workspace/[workspaceId]", params: { workspaceId: workspace.id } });
-    },
+      healthApi.createWorkspace({ name: name.trim(), description: description.trim() || null }),
+    onSuccess: onDone,
+    onError: (error) =>
+      Alert.alert("Could not create", error instanceof Error ? error.message : "Try again."),
   });
 
   return (
-    <Card style={styles.form}>
+    <View
+      style={{
+        gap: space.md,
+        padding: space.lg,
+        borderRadius: radius.lg,
+        borderCurve: "continuous",
+        borderWidth: 1,
+        borderColor: theme.border,
+        backgroundColor: theme.raised,
+      }}
+    >
+      <Field label="Who is this for?" placeholder="Dad" value={name} onChangeText={setName} autoFocus />
       <Field
-        autoFocus
-        label="Name"
-        onChangeText={setName}
-        placeholder="Dad, Mom's knee, my pregnancy…"
-        value={name}
-      />
-      <Field
-        label="Description"
-        multiline
-        numberOfLines={2}
-        onChangeText={setDescription}
-        placeholder="A sentence of context, if it's useful later."
+        label="What are you tracking?"
+        placeholder="Hypertension follow-up"
         value={description}
+        onChangeText={setDescription}
       />
-      {createMutation.isError ? (
-        <ErrorNote
-          message={
-            createMutation.error instanceof Error
-              ? createMutation.error.message
-              : "Could not create workspace."
-          }
-        />
-      ) : null}
-      <View style={styles.formActions}>
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <Button title="Cancel" variant="ghost" onPress={onDone} style={{ flex: 1 }} />
         <Button
-          label="Cancel"
-          onPress={onCancel}
-          disabled={createMutation.isPending}
-          variant="ghost"
-        />
-        <Button
-          label="Create workspace"
-          loading={createMutation.isPending}
+          title="Create"
+          loading={create.isPending}
           disabled={!name.trim()}
-          onPress={() => createMutation.mutate()}
-          variant="primary"
-          style={styles.formSubmit}
+          onPress={() => create.mutate()}
+          style={{ flex: 1 }}
         />
       </View>
-    </Card>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    gap: space.xs,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.lg,
-  },
-  headerAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-  },
-  spinner: {
-    marginTop: space.xxl,
-  },
-  list: {
-    gap: space.md,
-  },
-  card: {
-    padding: space.md,
-  },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-  },
-  monogram: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardBody: {
-    flex: 1,
-    gap: space.xs,
-  },
-  form: {
-    gap: space.md,
-  },
-  formActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-  },
-  formSubmit: {
-    flex: 1,
-  },
-});

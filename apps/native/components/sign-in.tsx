@@ -5,7 +5,7 @@ import z from "zod";
 
 import { Button, Card, ErrorNote, Field, useTheme } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { space, type } from "@/lib/theme";
+import { space, type } from "@/theme/tokens";
 
 const signInSchema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
@@ -130,10 +130,9 @@ function SignIn() {
               </form.Field>
 
               <Button
-                label="Sign in"
+                title="Sign in"
                 onPress={form.handleSubmit}
                 loading={isSubmitting}
-                full
                 style={styles.submit}
               />
             </>

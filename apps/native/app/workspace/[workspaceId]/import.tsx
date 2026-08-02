@@ -1,43 +1,35 @@
 import { importFileMediaTypeSchema, type ImportFile, type ImportResponse } from "@caretalk/contracts/health";
-import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 
-import { Button, Card, Field, Screen, SectionLabel, useTheme } from "@/components/ui";
+import { Glyph, KindIcon } from "@/components/kind-icon";
+import { Button, Eyebrow, Field, notifySaved, tap, useTheme } from "@/components/ui";
 import { healthApi } from "@/lib/api";
-import { formatDate, useKindMeta } from "@/lib/kind-meta";
-import { radius, space, type } from "@/lib/theme";
+import { formatDay, kindLabel } from "@/lib/record";
+import { radius, space, type } from "@/theme/tokens";
 
-// Raw-file cap. Base64 inflates ~4/3 and the server (Vercel) rejects request
-// bodies over ~4.5MB, so 3MB raw is the safe ceiling — same as
-// apps/web/src/features/health/import-page.tsx.
+// Raw-file cap. Base64 inflates ~4/3 and Vercel rejects request bodies over
+// ~4.5MB, so 3MB raw is the safe ceiling — same as the web import page.
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 export default function ImportScreen() {
   const { workspaceId } = useLocalSearchParams<{ workspaceId: string }>();
   const theme = useTheme();
-  const kindMeta = useKindMeta();
   const queryClient = useQueryClient();
+  const reduced = useReducedMotion();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<ImportFile | null>(null);
-  const [pickingFile, setPickingFile] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [result, setResult] = useState<ImportResponse | null>(null);
 
-  const importMutation = useMutation({
+  const runImport = useMutation({
     mutationFn: (force: boolean) =>
       healthApi.importContent(workspaceId, {
         title: title.trim() || (file ? file.name : "Imported notes"),
@@ -48,30 +40,30 @@ export default function ImportScreen() {
     onSuccess: (response) => {
       setResult(response);
       // The server recognised this exact payload and ran no extraction, so the
-      // form stays filled and the user confirms rather than retypes.
+      // form stays filled and you confirm rather than retype.
       if (response.duplicateOf) {
         Alert.alert(
           "Already imported",
           `This was imported before and saved ${response.memories.length} facts. Importing again duplicates all of them.`,
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Import anyway", onPress: () => importMutation.mutate(true) },
+            { text: "Import anyway", onPress: () => runImport.mutate(true) },
           ],
         );
         return;
       }
+      notifySaved();
       setContent("");
       setTitle("");
       setFile(null);
       void queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
     },
-    onError: (err) => {
-      Alert.alert("Could not import", err instanceof Error ? err.message : "Try again.");
-    },
+    onError: (err) =>
+      Alert.alert("Could not import", err instanceof Error ? err.message : "Try again."),
   });
 
   async function pickFile() {
-    setPickingFile(true);
+    setPicking(true);
     try {
       const picked = await DocumentPicker.getDocumentAsync({
         type: ["application/pdf", "image/png", "image/jpeg", "image/webp"],
@@ -86,249 +78,167 @@ export default function ImportScreen() {
         return;
       }
       if (asset.size !== undefined && asset.size > MAX_FILE_BYTES) {
-        Alert.alert(
-          "File too large",
-          "The limit is 3MB. Try a smaller scan or paste the text instead.",
-        );
+        Alert.alert("File too large", "The limit is 3MB. Try a smaller scan or paste the text instead.");
         return;
       }
 
-      // expo-file-system's new File API (SDK 55+) exposes base64() directly
-      // off a File handle constructed from the picked document's local uri.
+      // expo-file-system's File API (SDK 55+) reads base64 off a handle built
+      // from the picked document's local uri.
       const base64 = await new File(asset.uri).base64();
-      const dataUrl = `data:${mediaType.data};base64,${base64}`;
-      setFile({ name: asset.name, mediaType: mediaType.data, dataUrl });
+      setFile({
+        name: asset.name,
+        mediaType: mediaType.data,
+        dataUrl: `data:${mediaType.data};base64,${base64}`,
+      });
     } catch {
       Alert.alert("Could not read file", "Try picking the file again.");
     } finally {
-      setPickingFile(false);
+      setPicking(false);
     }
   }
 
-  const canSubmit = (content.trim().length > 0 || file !== null) && !importMutation.isPending;
-  const isPdf = file?.mediaType === "application/pdf";
+  const canSubmit = (content.trim().length > 0 || file !== null) && !runImport.isPending;
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: "Import",
-          // See workspace/index.tsx — same stranding guard for direct entry.
-          headerLeft: router.canGoBack()
-            ? undefined
-            : () => (
-                <Pressable
-                  accessibilityLabel="Back to workspace"
-                  accessibilityRole="button"
-                  hitSlop={12}
-                  onPress={() =>
-                    router.replace({
-                      pathname: "/workspace/[workspaceId]",
-                      params: { workspaceId },
-                    })
-                  }
-                >
-                  <Ionicons color={theme.primary} name="chevron-back" size={24} />
-                </Pressable>
-              ),
-        }}
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ backgroundColor: theme.paper }}
+      contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={{ gap: space.sm }}>
+        <Text style={[type.title, { color: theme.text }]}>Import a report</Text>
+        <Text style={[type.callout, { color: theme.textMuted }]}>
+          Paste a doctor's note or attach a PDF or photo of one. Caretalk pulls out the durable
+          facts and adds them to the thread, the same way it would in conversation.
+        </Text>
+        <Text style={[type.caption, { color: theme.textFaint }]}>
+          The file is read once to extract facts, then never stored.
+        </Text>
+      </View>
+
+      <Field label="Title" placeholder="Cardiology visit, March 3" value={title} onChangeText={setTitle} />
+
+      <Field
+        label="Content"
+        placeholder={file ? "Optional — context about the attached file…" : "Paste the note here…"}
+        multiline
+        value={content}
+        onChangeText={setContent}
       />
-      <Screen scroll edges={["bottom"]}>
-        <View style={styles.intro}>
-          <Text style={[type.title as TextStyle, { color: theme.text }]}>Import a report</Text>
-          <Text style={[type.callout as TextStyle, { color: theme.textMuted }]}>
-            Paste a doctor's note or attach a report — a PDF or a photo of it. Caretalk pulls out
-            the durable facts and saves them the same way it would in conversation.
+
+      {file ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space.md,
+            padding: space.md,
+            borderRadius: radius.md,
+            borderCurve: "continuous",
+            borderWidth: 1,
+            borderColor: theme.border,
+            backgroundColor: theme.raised,
+          }}
+        >
+          <Glyph
+            sf={file.mediaType === "application/pdf" ? "doc.text" : "photo"}
+            md={file.mediaType === "application/pdf" ? "file-document-outline" : "image-outline"}
+            color={theme.textMuted}
+            size={18}
+          />
+          <Text numberOfLines={1} style={[type.callout, { color: theme.text, flex: 1 }]}>
+            {file.name}
           </Text>
-        </View>
-
-        <Card muted style={styles.trustCard}>
-          <View style={[styles.trustIcon, { backgroundColor: theme.primarySoft }]}>
-            <Ionicons color={theme.primary} name="shield-checkmark-outline" size={16} />
-          </View>
-          <Text style={[type.caption as TextStyle, { color: theme.textMuted, flex: 1 }]}>
-            The file itself is read once to extract facts, then never stored.
-          </Text>
-        </Card>
-
-        <Field
-          label="Title"
-          placeholder="Cardiology visit, March 3"
-          value={title}
-          onChangeText={setTitle}
-        />
-
-        <Field
-          label="Content"
-          placeholder={
-            file ? "Optional — add context about the attached file…" : "Paste the note or transcript here…"
-          }
-          multiline
-          value={content}
-          onChangeText={setContent}
-        />
-
-        <SectionLabel>Or attach a report</SectionLabel>
-
-        {file ? (
-          <Card style={[styles.fileChip, { backgroundColor: theme.primarySoft, borderColor: theme.primarySoft }]}>
-            <View style={[styles.fileChipIcon, { backgroundColor: theme.surface }]}>
-              <Ionicons
-                color={theme.primary}
-                name={isPdf ? "document-text-outline" : "image-outline"}
-                size={18}
-              />
-            </View>
-            <Text style={[type.bodyStrong as TextStyle, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-              {file.name}
-            </Text>
-            <Pressable hitSlop={8} onPress={() => setFile(null)}>
-              <Ionicons color={theme.textFaint} name="close-circle" size={22} />
-            </Pressable>
-          </Card>
-        ) : (
           <Pressable
-            disabled={pickingFile}
-            onPress={() => void pickFile()}
-            style={({ pressed }) => [
-              styles.dropzone,
-              {
-                borderColor: theme.hairline,
-                backgroundColor: pressed ? theme.surfaceMuted : theme.surface,
-              },
-            ]}
+            accessibilityLabel="Remove file"
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={() => {
+              tap();
+              setFile(null);
+            }}
           >
-            {pickingFile ? (
-              <ActivityIndicator color={theme.primary} size="small" />
-            ) : (
-              <>
-                <View style={[styles.dropzoneIcon, { backgroundColor: theme.primarySoft }]}>
-                  <Ionicons color={theme.primary} name="cloud-upload-outline" size={22} />
-                </View>
-                <Text style={[type.bodyStrong as TextStyle, { color: theme.text }]}>Attach a report</Text>
-                <Text style={[type.caption as TextStyle, { color: theme.textFaint }]}>
-                  PDF or photo, up to 3MB
-                </Text>
-              </>
-            )}
+            <Glyph sf="xmark" md="close" color={theme.textFaint} size={15} />
           </Pressable>
-        )}
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          disabled={picking}
+          onPress={() => {
+            tap();
+            void pickFile();
+          }}
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: space.sm,
+            paddingVertical: space.lg,
+            borderRadius: radius.md,
+            borderCurve: "continuous",
+            borderWidth: 1,
+            borderStyle: "dashed",
+            borderColor: theme.border,
+            backgroundColor: pressed ? theme.sunken : "transparent",
+          })}
+        >
+          {picking ? (
+            <ActivityIndicator size="small" color={theme.textMuted as string} />
+          ) : (
+            <>
+              <Glyph sf="paperclip" md="paperclip" color={theme.textMuted} size={16} />
+              <Text style={[type.callout, { color: theme.textMuted }]}>Attach a PDF or photo</Text>
+            </>
+          )}
+        </Pressable>
+      )}
 
-        <Button
-          full
-          label="Save to memory"
-          loading={importMutation.isPending}
-          disabled={!canSubmit}
-          onPress={() => importMutation.mutate(false)}
-          style={styles.submit}
-        />
+      <Button
+        title="Read and save"
+        loading={runImport.isPending}
+        disabled={!canSubmit}
+        onPress={() => runImport.mutate(false)}
+      />
 
-        {result ? (
-          <View style={styles.resultSection}>
-            <SectionLabel>Saved to memory</SectionLabel>
+      {result ? (
+        <View style={{ gap: space.md, paddingTop: space.sm }}>
+          <Eyebrow>
+            {result.duplicateOf ? "That import saved" : "Added to the thread"}
+          </Eyebrow>
 
-            {result.profileUpdated ? (
-              <View style={[styles.profileChip, { backgroundColor: theme.accentSoft }]}>
-                <Ionicons color={theme.accentText} name="person-circle-outline" size={14} />
-                <Text style={[type.caption as TextStyle, { color: theme.accentText }]}>Profile updated</Text>
-              </View>
-            ) : null}
+          {result.profileUpdated ? (
+            <Text style={[type.caption, { color: theme.textFaint }]}>Profile updated</Text>
+          ) : null}
 
-            {result.memories.length === 0 ? (
-              <Text style={[type.callout as TextStyle, { color: theme.textMuted }]}>
-                No new facts were found in that text.
-              </Text>
-            ) : (
-              <View style={styles.resultList}>
-                {result.memories.map((memory) => {
-                  const meta = kindMeta[memory.kind] ?? kindMeta.note;
-                  return (
-                    <Card key={memory.id} style={styles.resultRow}>
-                      <View style={[styles.resultKindCircle, { backgroundColor: meta.bg }]}>
-                        <Ionicons color={meta.fg} name={meta.icon} size={16} />
-                      </View>
-                      <View style={styles.resultBody}>
-                        <Text style={[type.body as TextStyle, { color: theme.text }]}>{memory.content}</Text>
-                        <Text style={[type.caption as TextStyle, { color: meta.fg }]}>
-                          {meta.label} · {formatDate(memory.happenedOn)}
-                        </Text>
-                      </View>
-                    </Card>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        ) : null}
-      </Screen>
-    </>
+          {result.memories.length === 0 ? (
+            <Text style={[type.callout, { color: theme.textMuted }]}>
+              No durable facts were found in that text.
+            </Text>
+          ) : (
+            result.memories.map((memory, index) => (
+              <Animated.View
+                key={memory.id}
+                entering={reduced ? undefined : FadeInDown.delay(index * 30).duration(240)}
+                style={{ flexDirection: "row", gap: space.md, alignItems: "flex-start" }}
+              >
+                <View style={{ paddingTop: 3 }}>
+                  <KindIcon kind={memory.kind} color={theme.accent} size={13} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text selectable style={[type.callout, { color: theme.text }]}>
+                    {memory.content}
+                  </Text>
+                  <Text style={[type.caption, { color: theme.textFaint }]}>
+                    {kindLabel[memory.kind]} · {formatDay(memory.happenedOn)}
+                  </Text>
+                </View>
+              </Animated.View>
+            ))
+          )}
+        </View>
+      ) : null}
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  intro: { gap: space.sm },
-  trustCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-    padding: space.md,
-  },
-  trustIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dropzone: {
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderRadius: radius.lg,
-    paddingVertical: space.xl,
-    paddingHorizontal: space.lg,
-    alignItems: "center",
-    gap: space.xs,
-  },
-  dropzoneIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: space.xs,
-  },
-  fileChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-    padding: space.md,
-  },
-  fileChipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submit: { marginTop: space.xs },
-  resultSection: { gap: space.md },
-  resultList: { gap: space.sm },
-  profileChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    alignSelf: "flex-start",
-    borderRadius: radius.pill,
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-  },
-  resultRow: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
-  resultKindCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  resultBody: { flex: 1, gap: 2 },
-});

@@ -6,18 +6,11 @@ import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useTheme } from "@/components/ui";
-import { NAV_THEME, type } from "@/lib/theme";
 import { useColorScheme } from "@/lib/use-color-scheme";
+import { NAV_THEME, type } from "@/theme/tokens";
 
-const LIGHT_THEME: Theme = {
-  ...DefaultTheme,
-  colors: NAV_THEME.light,
-};
-const DARK_THEME: Theme = {
-  ...DarkTheme,
-  colors: NAV_THEME.dark,
-};
+const LIGHT_THEME: Theme = { ...DefaultTheme, colors: NAV_THEME.light };
+const DARK_THEME: Theme = { ...DarkTheme, colors: NAV_THEME.dark };
 
 // Anchors the stack. Without this, any entry that isn't a push — a deep link,
 // or a Fast Refresh reload while sitting on a workspace — builds no back stack
@@ -28,30 +21,27 @@ export const unstable_settings = {
 
 const queryClient = new QueryClient();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+const styles = StyleSheet.create({ container: { flex: 1 } });
 
 function RootStack() {
-  const theme = useTheme();
-
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: theme.canvas },
-        headerTintColor: theme.primary,
-        headerTitleStyle: { ...type.heading, color: theme.text },
+        // Transparent + blurred so content scrolls under the bar rather than
+        // stopping at a hard edge — the thread should feel continuous past the
+        // top of the screen.
+        headerTransparent: true,
+        headerBlurEffect: "systemChromeMaterial",
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: theme.canvas },
+        headerLargeTitleShadowVisible: false,
+        headerBackButtonDisplayMode: "minimal",
+        headerTitleStyle: type.heading,
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="workspaces" options={{ title: "Workspaces" }} />
-      <Stack.Screen name="workspace/[workspaceId]/index" options={{ title: "Workspace" }} />
-      <Stack.Screen name="workspace/[workspaceId]/import" options={{ title: "Import" }} />
+      <Stack.Screen name="workspaces" options={{ title: "Caretalk", headerLargeTitle: true }} />
+      <Stack.Screen name="workspace/[workspaceId]" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -5,7 +5,7 @@ import z from "zod";
 
 import { Button, Card, ErrorNote, Field, useTheme } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { space, type } from "@/lib/theme";
+import { space, type } from "@/theme/tokens";
 
 const signUpSchema = z.object({
   name: z.string().trim().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
@@ -154,10 +154,9 @@ function SignUp() {
               </form.Field>
 
               <Button
-                label="Create account"
+                title="Create account"
                 onPress={form.handleSubmit}
                 loading={isSubmitting}
-                full
                 style={styles.submit}
               />
             </>

@@ -7,6 +7,7 @@ import type {
   ImportInput,
   ImportResponse,
   Memory,
+  ProfileVersionsResponse,
   UpdateMemoryInput,
   UpdateWorkspaceInput,
   Workspace,
@@ -92,6 +93,15 @@ export const healthApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+
+  listProfileVersions: (workspaceId: string) =>
+    apiFetch<ProfileVersionsResponse>("/api/v1/workspaces/" + workspaceId + "/profile-versions"),
+
+  restoreProfileVersion: (workspaceId: string, versionId: string) =>
+    apiFetch<Workspace>(
+      "/api/v1/workspaces/" + workspaceId + "/profile-versions/" + versionId + "/restore",
+      { method: "POST", body: JSON.stringify({}) },
+    ),
 
   createMemory: (workspaceId: string, input: CreateMemoryInput) =>
     apiFetch<Memory>("/api/v1/workspaces/" + workspaceId + "/memories", {

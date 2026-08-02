@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, type TextStyle, View } from "react
 
 import { useTheme } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { space, type as typeTokens } from "@/lib/theme";
+import { space, type as typeTokens } from "@/theme/tokens";
 
 export default function Index() {
   const theme = useTheme();
@@ -11,7 +11,7 @@ export default function Index() {
 
   if (isPending) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.canvas }]}>
+      <View style={[styles.container, { backgroundColor: theme.paper }]}>
         <Text style={[typeTokens.display as TextStyle, styles.wordmark, { color: theme.text }]}>
           Caretalk
         </Text>

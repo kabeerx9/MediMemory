@@ -79,7 +79,7 @@ export default function ChatTab() {
   const messagesQuery = useQuery({
     queryKey: ["session-messages", workspaceId, activeSessionId],
     queryFn: () => healthApi.getSessionMessages(workspaceId, activeSessionId as string),
-    enabled: !!activeSessionId,
+    enabled: !!workspaceId && !!activeSessionId,
   });
 
   // Any of the three can fail, and every one of them leaves the screen with

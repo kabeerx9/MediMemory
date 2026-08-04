@@ -22,9 +22,9 @@ export function SessionPicker({
   const current = sessions.find((session) => session.id === currentSessionId);
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button className="max-w-[14rem] gap-1.5" size="sm" variant="ghost" />}>
+        <DropdownMenuTrigger render={<Button className="max-w-[6.5rem] gap-1 sm:max-w-[14rem] sm:gap-1.5" size="sm" variant="ghost" />}>
           <span className="truncate">{current?.title ?? "New chat"}</span>
           <ChevronDown className="size-3.5 shrink-0" />
         </DropdownMenuTrigger>
@@ -36,9 +36,14 @@ export function SessionPicker({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button onClick={onCreate} size="sm" variant="ghost">
+      <Button
+        className="w-9 px-0 sm:w-auto sm:px-3"
+        onClick={onCreate}
+        size="sm"
+        variant="ghost"
+      >
         <Plus className="size-3.5" />
-        New chat
+        <span className="hidden sm:inline">New chat</span>
       </Button>
     </div>
   );

@@ -59,7 +59,7 @@ function RootComponent() {
             className={
               isAuthPage
                 ? "h-svh bg-background"
-                : "grid h-svh grid-rows-[auto_1fr] bg-background [&>*:last-child]:min-h-0"
+                : "grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden overscroll-none bg-background [&>*:last-child]:min-h-0 [&>*:last-child]:overflow-hidden"
             }
           >
             {isAuthPage ? null : <Header />}

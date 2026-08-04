@@ -1,5 +1,6 @@
 import type { Memory } from "@caretalk/contracts/health";
-import { useMemo, useState } from "react";
+import { ChartNoAxesColumnIncreasing } from "lucide-react";
+import { useMemo } from "react";
 
 // The payoff of longitudinal tracking: a value you can see move.
 //
@@ -53,33 +54,30 @@ export function buildSeries(memories: Memory[]): Series[] {
 }
 
 export function TrendsSection({ memories }: { memories: Memory[] }) {
-  const [open, setOpen] = useState(true);
   const series = useMemo(() => buildSeries(memories), [memories]);
 
-  if (series.length === 0) return null;
+  if (series.length === 0) {
+    return (
+      <div className="flex flex-col items-center rounded-lg border border-dashed border-border px-4 py-8 text-center">
+        <ChartNoAxesColumnIncreasing className="mb-2 size-5 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">No trends yet</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          At least two dated readings of the same measurement are needed to draw a trend.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Trends
-        </h2>
-        <button
-          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          onClick={() => setOpen((value) => !value)}
-          type="button"
-        >
-          {open ? "Hide" : `Show (${series.length})`}
-        </button>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {series.length} chartable {series.length === 1 ? "measurement" : "measurements"}
+      </p>
+      <div className="space-y-1.5">
+        {series.map((item) => (
+          <TrendRow key={item.metric} series={item} />
+        ))}
       </div>
-
-      {open ? (
-        <div className="space-y-1.5">
-          {series.map((item) => (
-            <TrendRow key={item.metric} series={item} />
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }

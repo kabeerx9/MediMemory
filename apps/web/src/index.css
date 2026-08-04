@@ -1,1 +1,4 @@
 @import "@caretalk/ui/globals.css";
+@import "streamdown/styles.css";
+
+@source "../node_modules/streamdown/dist/**/*.js";

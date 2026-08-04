@@ -145,9 +145,9 @@ export function WorkspaceShell({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5 lg:px-6">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link
             className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground"
             to="/workspaces"
@@ -155,7 +155,7 @@ export function WorkspaceShell({
             <ArrowLeft className="size-4" />
             <span className="sr-only">All workspaces</span>
           </Link>
-          <h1 className="truncate font-display text-lg font-semibold tracking-tight">
+          <h1 className="hidden truncate font-display text-lg font-semibold tracking-tight sm:block">
             {workspace.name}
           </h1>
         </div>
@@ -169,9 +169,9 @@ export function WorkspaceShell({
             />
           ) : null}
           <Link params={{ workspaceId }} to="/workspaces/$workspaceId/import">
-            <Button size="sm" variant="ghost">
+            <Button className="w-9 px-0 sm:w-auto sm:px-3" size="sm" variant="ghost">
               <Upload className="size-3.5" />
-              Import
+              <span className="hidden sm:inline">Import</span>
             </Button>
           </Link>
           <Button
@@ -181,13 +181,13 @@ export function WorkspaceShell({
             variant="ghost"
           >
             <PanelRight className="size-4" />
-            <span className="sr-only">Profile and memory</span>
+            <span className="sr-only">Patient context</span>
           </Button>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeSessionId && initialMessages ? (
             <WorkspaceChat
               initialMessages={initialMessages}
@@ -203,15 +203,20 @@ export function WorkspaceShell({
           )}
         </div>
 
-        <aside className="hidden w-[360px] shrink-0 border-l border-border lg:block">{rail}</aside>
+        <aside className="hidden min-h-0 w-[384px] shrink-0 overflow-hidden border-l border-border lg:block">
+          {rail}
+        </aside>
       </div>
 
       <Sheet onOpenChange={setRailOpen} open={railOpen}>
-        <SheetContent className="w-full p-0 sm:max-w-sm" side="right">
+        <SheetContent
+          className="flex w-full! max-w-none! flex-col overflow-hidden p-0 sm:max-w-sm!"
+          side="right"
+        >
           <SheetHeader className="border-b border-border">
-            <SheetTitle>Profile and memory</SheetTitle>
+            <SheetTitle>Patient context</SheetTitle>
           </SheetHeader>
-          {rail}
+          <div className="min-h-0 flex-1 overflow-hidden">{rail}</div>
         </SheetContent>
       </Sheet>
     </div>

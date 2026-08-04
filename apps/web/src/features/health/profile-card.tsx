@@ -210,10 +210,22 @@ function renderProfileLines(profile: string) {
     if (/^[-*]\s/.test(trimmed)) {
       return (
         <p key={index} className="pl-3 before:mr-1.5 before:content-['·']">
-          {trimmed.replace(/^[-*]\s/, "")}
+          {renderInlineMarkdown(trimmed.replace(/^[-*]\s/, ""))}
         </p>
       );
     }
-    return <p key={index}>{trimmed}</p>;
+    return <p key={index}>{renderInlineMarkdown(trimmed)}</p>;
   });
+}
+
+function renderInlineMarkdown(value: string) {
+  return value.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**") ? (
+      <strong key={index} className="font-semibold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  );
 }

@@ -6,6 +6,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { clientTimeZone, healthApi } from "@/features/health/api";
+import {
+  AssistantMarkdown,
+  getStreamingAssistantMessageId,
+} from "@/features/health/assistant-markdown";
 import type { CaretalkUIMessage } from "@/features/health/chat-types";
 import { SaveMemoryChip, UpdateProfileChip } from "@/features/health/memory-chip";
 
@@ -52,6 +56,7 @@ export function WorkspaceChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  const streamingAssistantMessageId = getStreamingAssistantMessageId(messages, status);
 
   useEffect(() => {
     let didSave = false;
@@ -89,8 +94,11 @@ export function WorkspaceChat({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        data-chat-scroll
+      >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center gap-5 py-16 text-center">
@@ -123,7 +131,14 @@ export function WorkspaceChat({
             messages
               .filter((message) => message.role !== "system")
               .map((message) => (
-                <ChatMessageView key={message.id} message={message} workspaceId={workspaceId} />
+                <ChatMessageView
+                  key={message.id}
+                  isStreaming={
+                    message.role === "assistant" && message.id === streamingAssistantMessageId
+                  }
+                  message={message}
+                  workspaceId={workspaceId}
+                />
               ))
           )}
 
@@ -178,9 +193,11 @@ export function WorkspaceChat({
 function ChatMessageView({
   message,
   workspaceId,
+  isStreaming,
 }: {
   message: CaretalkUIMessage;
   workspaceId: string;
+  isStreaming: boolean;
 }) {
   const isUser = message.role === "user";
 
@@ -197,9 +214,9 @@ function ChatMessageView({
               <p className="whitespace-pre-wrap">{part.text}</p>
             </div>
           ) : (
-            <p key={index} className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+            <AssistantMarkdown key={index} isStreaming={isStreaming}>
               {part.text}
-            </p>
+            </AssistantMarkdown>
           );
         }
 

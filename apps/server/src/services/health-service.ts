@@ -108,7 +108,7 @@ export const healthService = {
   ): Promise<ReadableStream<UIMessageChunk>> {
     const workspace = await healthRepository.getWorkspace(userId, workspaceId);
     await healthRepository.getChatSession(workspaceId, sessionId);
-    const model = buildModel("chat");
+    const model = buildModel("chat", { sessionId });
 
     const timeZone = resolveTimeZone(timeZoneCandidate);
     const activeMemories = await healthRepository.listActiveMemories(workspaceId);

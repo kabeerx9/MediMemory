@@ -705,6 +705,7 @@ APP_TIMEZONE=Asia/Kolkata
 # Optional
 AI_CHAT_MODEL=           # defaults to AI_MODEL
 AI_IMPORT_MODEL=         # defaults to AI_MODEL
+AI_CHAT_REASONING_EFFORT=# xhigh/high/medium/low/minimal/none; optional
 AI_PROMPT_CACHE=true     # Anthropic caching via OpenRouter; ignored elsewhere
 AI_RATE_LIMIT=60         # model-calling requests per user per window
 AI_RATE_LIMIT_WINDOW_MS=3600000
@@ -719,6 +720,7 @@ frontend's own origin in prod (requests go through the proxy).
 
 ```bash
 pnpm install
+pnpm db:up                      # Postgres 16 on localhost:5434
 pnpm db:push                    # apply schema (needs DATABASE_URL)
 pnpm dev:server                 # Fastify on :3000
 pnpm dev:web                    # Vite on :3001
@@ -726,6 +728,10 @@ pnpm dev:web                    # Vite on :3001
 # optional demo data (after signing up once through the UI):
 SEED_USER_EMAIL=you@example.com pnpm -F @caretalk/db seed
 ```
+
+Local development uses `postgresql://postgres:dev@localhost:5434/caretalk_dev`.
+The database lives in the named Docker volume `medimemory_pg_data`; `pnpm
+db:down` stops and removes the container/network but retains that volume.
 
 ---
 

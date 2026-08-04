@@ -18,6 +18,9 @@ const schema = z.object({
   // chat is where the accumulate-vs-supersede judgement happens.
   AI_CHAT_MODEL: z.string().min(1).optional(),
   AI_IMPORT_MODEL: z.string().min(1).optional(),
+  AI_CHAT_REASONING_EFFORT: z
+    .enum(["xhigh", "high", "medium", "low", "minimal", "none"])
+    .optional(),
   // Anthropic prompt caching through OpenRouter. The system prompt carries the
   // whole active memory list and is re-sent every turn; caching it is the
   // single biggest lever on cost. Ignored for non-Anthropic models.

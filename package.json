@@ -13,6 +13,8 @@
     "test": "turbo test",
     "test:db": "RUN_DB_TESTS=1 turbo test",
     "eval": "RUN_EVALS=1 turbo eval",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",

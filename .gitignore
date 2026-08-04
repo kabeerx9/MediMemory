@@ -53,3 +53,6 @@ temp
 *.local-seed.json
 personal-seed*.json
 .playwright-mcp/
+
+# Local medical migrations - contains private health information
+/local-health-data/

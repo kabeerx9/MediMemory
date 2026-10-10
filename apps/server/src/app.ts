@@ -5,7 +5,10 @@ import { ZodError } from "zod";
 import Fastify from "fastify";
 
 import { HttpError } from "./lib/http-error";
+import { sendWebResponse, toWebRequest } from "./lib/web-bridge";
 import { healthMemoryRoutes } from "./routes/health-memory";
+import { mcpRoutes } from "./routes/mcp";
+import { reportRoutes } from "./routes/reports";
 
 // App assembly without listen(): the local entrypoint (index.ts) listens on a
 // port; the Vercel entrypoint (api/index.ts) feeds requests in via the node
@@ -39,44 +42,36 @@ export function buildApp() {
   fastify.register(fastifyCors, {
     origin: env.CORS_ORIGIN,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-File-Name"],
     credentials: true,
     maxAge: 86400,
   });
   fastify.register(healthMemoryRoutes);
+  fastify.register(reportRoutes);
+
+  // OAuth token, revocation, and (optionally) authorize requests are
+  // form-encoded. Keep the raw string: better-auth parses it itself, and
+  // client authentication depends on the exact parameters received.
+  fastify.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => done(null, body),
+  );
 
   fastify.route({
     method: ["GET", "POST"],
     url: "/api/auth/*",
     async handler(request, reply) {
       try {
-        const url = new URL(request.url, "http://" + request.headers.host);
-        const headers = new Headers();
-        Object.entries(request.headers).forEach(([key, value]) => {
-          if (value) headers.append(key, value.toString());
-        });
-        const req = new Request(url.toString(), {
-          method: request.method,
-          headers,
-          body: request.body ? JSON.stringify(request.body) : undefined,
-        });
-        // Structural type: the web Response global resolves differently across
-        // build environments (DOM lib vs undici); depend only on what we use.
-        const response = (await auth.handler(req)) as {
-          status: number;
-          headers: { forEach(callback: (value: string, key: string) => void): void };
-          body: unknown;
-          text(): Promise<string>;
-        };
-        reply.status(response.status);
-        response.headers.forEach((value, key) => reply.header(key, value));
-        reply.send(response.body ? await response.text() : null);
+        return await sendWebResponse(reply, await auth.handler(toWebRequest(request)));
       } catch (error) {
         fastify.log.error({ err: error }, "Authentication Error:");
         reply.status(500).send({ error: "Internal authentication error", code: "AUTH_FAILURE" });
       }
     },
   });
+
+  fastify.register(mcpRoutes);
 
   fastify.get("/", async () => "OK");
 

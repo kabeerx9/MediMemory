@@ -35,15 +35,16 @@ type MessagesResponse = { messages: Array<{ id: string; role: string; parts: unk
 
 // Unlike the web client, native fetch does not have access to the browser
 // cookie jar — better-auth's expo plugin persists the session separately
-// (SecureStore) and exposes it as a cookie string via getCookie(). Every
-// request must attach it manually.
+// (SecureStore) and exposes it as a cookie string via getCookie() — async
+// since better-auth 1.7 moved to the async SecureStore APIs. Every request must
+// attach it manually.
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined && init.body !== null;
   const response = await fetch(SERVER_URL + path, {
     ...init,
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
-      Cookie: authClient.getCookie(),
+      Cookie: await authClient.getCookie(),
       ...(init?.headers ?? {}),
     },
   });
@@ -67,7 +68,7 @@ export const healthApi = {
 
   exportAccountMarkdown: async (): Promise<string> => {
     const response = await fetch(SERVER_URL + "/api/v1/export?format=markdown", {
-      headers: { Cookie: authClient.getCookie() },
+      headers: { Cookie: await authClient.getCookie() },
     });
     if (!response.ok) throw new Error("Export failed");
     return response.text();
@@ -76,7 +77,7 @@ export const healthApi = {
   exportWorkspaceMarkdown: async (workspaceId: string): Promise<string> => {
     const response = await fetch(
       SERVER_URL + "/api/v1/workspaces/" + workspaceId + "/export?format=markdown",
-      { headers: { Cookie: authClient.getCookie() } },
+      { headers: { Cookie: await authClient.getCookie() } },
     );
     if (!response.ok) throw new Error("Export failed");
     return response.text();

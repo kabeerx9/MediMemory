@@ -24,6 +24,7 @@ import { buildModel } from "../lib/model";
 import { buildSystemPrompt } from "../lib/system-prompt";
 import { resolveTimeZone, todayIn } from "../lib/time";
 import { healthRepository } from "../repositories/health-repository";
+import { reportsService } from "./reports-service";
 
 // A chat turn can legitimately carry several facts ("bp was 138/86, he skipped
 // the evening dose, and the cardiologist moved to the 12th") and models emit
@@ -201,19 +202,30 @@ export const healthService = {
       }
     }
 
-    // Attached files are ephemeral: the source row records that a file was the
-    // origin, but the bytes only exist for the duration of this model call.
+    // With file storage configured, the original is kept and listed under
+    // Reports; without it (serverless), the bytes only exist for the duration
+    // of this model call and the source row just records the file's name.
+    const retainFile = Boolean(input.file) && reportsService.fileStorageEnabled;
     const source = await healthRepository.createSource(workspaceId, {
       type: "import",
       title: input.title,
       content:
         input.content ??
-        (input.file ? `[Imported from file: ${input.file.name} — file not retained]` : null),
+        (input.file
+          ? `[Imported from file: ${input.file.name}${retainFile ? "" : " — file not retained"}]`
+          : null),
       // A forced re-import intentionally leaves the hash off: the unique index
       // is on (workspace, hash), so stamping it twice would collide, and the
       // original row stays the one that answers "have I imported this?".
       contentHash: input.force ? null : contentHash,
     });
+
+    // Kept before extraction runs: if the model call fails, the original is
+    // still on file under Reports and can be re-imported from there.
+    if (input.file && retainFile) {
+      const base64 = input.file.dataUrl.slice(input.file.dataUrl.indexOf(",") + 1);
+      await reportsService.retainImportFile(workspaceId, source.id, Buffer.from(base64, "base64"), input.file.name);
+    }
 
     const timeZone = resolveTimeZone(input.timeZone);
     const activeMemories = await healthRepository.listActiveMemories(workspaceId);

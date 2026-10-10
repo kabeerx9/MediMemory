@@ -1,7 +1,8 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -55,12 +56,71 @@ export const sources = pgTable(
     // as distinct in a unique index, so pre-existing rows (and non-import
     // sources) never collide.
     contentHash: text("content_hash"),
+    // External-app provenance (type mcp | report): the OAuth client that
+    // created the row, and its display name captured at the time — so "saved
+    // via Claude" still reads right after the app is disconnected.
+    clientId: text("client_id"),
+    clientName: text("client_name"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("sources_workspace_idx").on(table.workspaceId),
     uniqueIndex("sources_workspace_hash_idx").on(table.workspaceId, table.contentHash),
+    // One provenance row per (workspace, app). Partial so report rows, which
+    // also carry a client_id, can repeat. This is what makes the get-or-create
+    // in the MCP save path race-safe: two parallel saves can't both insert.
+    uniqueIndex("sources_workspace_mcp_client_idx")
+      .on(table.workspaceId, table.clientId)
+      .where(sql`${table.type} = 'mcp'`),
   ],
+);
+
+// Original files (PDF / photo) behind a source. Bytes live in the file store
+// (FILES_DIR), never in Postgres; this row is the index and the integrity
+// record (sha256). Deleted with the source or workspace.
+export const sourceFiles = pgTable(
+  "source_files",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => sources.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    // Sniffed from the bytes, not taken from the uploader's Content-Type.
+    mediaType: text("media_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    storageKey: text("storage_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("source_files_source_idx").on(table.sourceId),
+    index("source_files_workspace_idx").on(table.workspaceId),
+  ],
+);
+
+// One-time links that let a phone browser attach a report's original file
+// without logging in. Only the sha256 of the token is stored, so a database
+// leak doesn't hand out working links. Single use is enforced by a
+// conditional UPDATE on used_at, not by a read-then-write.
+export const uploadLinks = pgTable(
+  "upload_links",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => sources.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("upload_links_source_idx").on(table.sourceId)],
 );
 
 // Every profile change appends the PREVIOUS text here before overwriting.
@@ -167,6 +227,7 @@ export const chatMessages = pgTable(
 export const workspaceRelations = relations(workspaces, ({ many, one }) => ({
   owner: one(user, { fields: [workspaces.ownerUserId], references: [user.id] }),
   sources: many(sources),
+  sourceFiles: many(sourceFiles),
   memories: many(memories),
   chatSessions: many(chatSessions),
   profileVersions: many(profileVersions),
@@ -188,4 +249,15 @@ export const memoryRelations = relations(memories, ({ one }) => ({
 export const chatSessionRelations = relations(chatSessions, ({ many, one }) => ({
   workspace: one(workspaces, { fields: [chatSessions.workspaceId], references: [workspaces.id] }),
   messages: many(chatMessages),
+}));
+
+export const sourceRelations = relations(sources, ({ many, one }) => ({
+  workspace: one(workspaces, { fields: [sources.workspaceId], references: [workspaces.id] }),
+  files: many(sourceFiles),
+  memories: many(memories),
+}));
+
+export const sourceFileRelations = relations(sourceFiles, ({ one }) => ({
+  workspace: one(workspaces, { fields: [sourceFiles.workspaceId], references: [workspaces.id] }),
+  source: one(sources, { fields: [sourceFiles.sourceId], references: [sources.id] }),
 }));

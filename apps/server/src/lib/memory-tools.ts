@@ -4,6 +4,7 @@ import {
   memoryKindSchema,
   saveMemoryToolInputSchema,
   updateProfileToolInputSchema,
+  type SaveMemoryToolInput,
   type SaveMemoryToolOutput,
 } from "@caretalk/contracts/health";
 import { db } from "@caretalk/db";
@@ -48,78 +49,7 @@ export function buildMemoryTools(workspaceId: string, options?: { sourceId?: str
     save_memory: tool({
       description: SAVE_MEMORY_DESCRIPTION,
       inputSchema: saveMemoryToolInputSchema,
-      execute: async ({
-        content,
-        kind,
-        happenedOn,
-        supersedesId,
-        metric,
-        value,
-        valueSecondary,
-        unit,
-      }): Promise<SaveMemoryToolOutput> => {
-        // Soft taxonomy: unknown kinds degrade to "note" instead of failing the turn.
-        const parsedKind = memoryKindSchema.safeParse(kind);
-        const safeKind = parsedKind.success ? parsedKind.data : "note";
-
-        return db.transaction(async (tx) => {
-          let supersededContent: string | null = null;
-
-          if (supersedesId) {
-            const [target] = await tx
-              .select()
-              .from(memories)
-              .where(
-                and(
-                  eq(memories.id, supersedesId),
-                  eq(memories.workspaceId, workspaceId),
-                  isNull(memories.supersededById),
-                ),
-              );
-            // Wrong/stale ID → save as a plain ADD rather than failing the chat
-            // turn. The fact still lands; only the linkage is lost.
-            supersededContent = target?.content ?? null;
-          }
-
-          const id = randomUUID();
-          const [row] = await tx
-            .insert(memories)
-            .values({
-              id,
-              workspaceId,
-              content,
-              kind: safeKind,
-              happenedOn: happenedOn ?? null,
-              metric: normalizeMetric(metric),
-              value: value ?? null,
-              valueSecondary: valueSecondary ?? null,
-              unit: unit?.trim() || null,
-              sourceId,
-            })
-            .returning();
-
-          if (supersedesId && supersededContent !== null) {
-            await tx
-              .update(memories)
-              .set({ supersededById: id, supersededAt: new Date() })
-              .where(and(eq(memories.id, supersedesId), eq(memories.workspaceId, workspaceId)));
-          }
-
-          if (!row) throw new Error("memory insert returned no row");
-          return {
-            id: row.id,
-            content: row.content,
-            kind: safeKind,
-            happenedOn: row.happenedOn,
-            metric: row.metric,
-            value: row.value,
-            valueSecondary: row.valueSecondary,
-            unit: row.unit,
-            supersededId: supersededContent !== null ? supersedesId : null,
-            supersededContent,
-          };
-        });
-      },
+      execute: (input): Promise<SaveMemoryToolOutput> => saveMemory(workspaceId, input, { sourceId }),
     }),
 
     update_profile: tool({
@@ -131,6 +61,88 @@ export function buildMemoryTools(workspaceId: string, options?: { sourceId?: str
       },
     }),
   };
+}
+
+/**
+ * The model write path, shared by the in-app chat/import tools and the MCP
+ * tools. The caller has already resolved (and authorized) the workspace.
+ */
+export async function saveMemory(
+  workspaceId: string,
+  {
+    content,
+    kind,
+    happenedOn,
+    supersedesId,
+    metric,
+    value,
+    valueSecondary,
+    unit,
+  }: SaveMemoryToolInput,
+  options?: { sourceId?: string | null },
+): Promise<SaveMemoryToolOutput> {
+  const sourceId = options?.sourceId ?? null;
+  // Soft taxonomy: unknown kinds degrade to "note" instead of failing the turn.
+  const parsedKind = memoryKindSchema.safeParse(kind);
+  const safeKind = parsedKind.success ? parsedKind.data : "note";
+
+  return db.transaction(async (tx) => {
+    let supersededContent: string | null = null;
+
+    if (supersedesId) {
+      const [target] = await tx
+        .select()
+        .from(memories)
+        .where(
+          and(
+            eq(memories.id, supersedesId),
+            eq(memories.workspaceId, workspaceId),
+            isNull(memories.supersededById),
+          ),
+        );
+      // Wrong/stale ID → save as a plain ADD rather than failing the chat
+      // turn. The fact still lands; only the linkage is lost.
+      supersededContent = target?.content ?? null;
+    }
+
+    const id = randomUUID();
+    const [row] = await tx
+      .insert(memories)
+      .values({
+        id,
+        workspaceId,
+        content,
+        kind: safeKind,
+        happenedOn: happenedOn ?? null,
+        metric: normalizeMetric(metric),
+        value: value ?? null,
+        valueSecondary: valueSecondary ?? null,
+        unit: unit?.trim() || null,
+        sourceId,
+      })
+      .returning();
+
+    if (supersedesId && supersededContent !== null) {
+      await tx
+        .update(memories)
+        .set({ supersededById: id, supersededAt: new Date() })
+        .where(and(eq(memories.id, supersedesId), eq(memories.workspaceId, workspaceId)));
+    }
+
+    if (!row) throw new Error("memory insert returned no row");
+    return {
+      id: row.id,
+      content: row.content,
+      kind: safeKind,
+      happenedOn: row.happenedOn,
+      metric: row.metric,
+      value: row.value,
+      valueSecondary: row.valueSecondary,
+      unit: row.unit,
+      supersededId: supersededContent !== null ? supersedesId : null,
+      supersededContent,
+    };
+  });
 }
 
 // Metrics are grouped by exact string match, so a slug that drifts with the

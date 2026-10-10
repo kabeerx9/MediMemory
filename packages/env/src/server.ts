@@ -40,6 +40,12 @@ const schema = z.object({
   // a spend guard, not a security control.
   AI_RATE_LIMIT: z.coerce.number().int().positive().default(60),
   AI_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60 * 60 * 1000),
+  // Where report originals (PDFs, photos) are stored. Unset = no durable
+  // file storage (serverless): upload links and attachments are disabled with
+  // a clear message rather than writing to an ephemeral disk. Set it on any
+  // host with a real filesystem (VPS, local dev).
+  FILES_DIR: z.string().min(1).optional(),
+  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 

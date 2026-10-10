@@ -16,7 +16,7 @@ import {
   sources,
   workspaces,
 } from "@caretalk/db/schema/health";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 
 import { notFound } from "../lib/http-error";
 import { normalizeMetric, writeProfile } from "../lib/memory-tools";
@@ -24,7 +24,7 @@ import { normalizeMetric, writeProfile } from "../lib/memory-tools";
 // Not part of the public contract types (no exported alias exists for these two
 // enums) but must stay in lockstep with packages/contracts/src/health.ts.
 type ChatRole = "user" | "assistant" | "system";
-type SourceType = "chat_session" | "import" | "manual" | "seed";
+type SourceType = "chat_session" | "import" | "manual" | "seed" | "mcp" | "report";
 type ProfileChangedBy = "model" | "user" | "restore";
 
 function iso(date: Date) {
@@ -43,7 +43,7 @@ function toWorkspace(row: typeof workspaces.$inferSelect) {
   };
 }
 
-function toSource(row: typeof sources.$inferSelect) {
+export function toSource(row: typeof sources.$inferSelect) {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -51,6 +51,7 @@ function toSource(row: typeof sources.$inferSelect) {
     title: row.title,
     content: row.content,
     contentHash: row.contentHash,
+    clientName: row.clientName,
     createdAt: iso(row.createdAt),
   };
 }
@@ -65,7 +66,7 @@ function toProfileVersion(row: typeof profileVersions.$inferSelect) {
   };
 }
 
-function toMemory(row: typeof memories.$inferSelect) {
+export function toMemory(row: typeof memories.$inferSelect) {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -202,19 +203,28 @@ export const healthRepository = {
   async getWorkspaceDetail(userId: string, workspaceId: string) {
     const workspace = await this.getWorkspace(userId, workspaceId);
 
-    const [memoryRows, sessionRows] = await Promise.all([
+    const [memoryRows, sessionRows, sourceRows] = await Promise.all([
       db.select().from(memories).where(eq(memories.workspaceId, workspaceId)).orderBy(...memoryOrder),
       db
         .select()
         .from(chatSessions)
         .where(eq(chatSessions.workspaceId, workspaceId))
         .orderBy(desc(chatSessions.updatedAt)),
+      db
+        .select()
+        .from(sources)
+        .where(eq(sources.workspaceId, workspaceId))
+        .orderBy(desc(sources.createdAt)),
     ]);
 
     return {
       workspace,
       memories: memoryRows.map(toMemory),
       chatSessions: sessionRows.map(toChatSession),
+      sources: sourceRows.map((row) => {
+        const { content: _content, ...rest } = toSource(row);
+        return rest;
+      }),
     };
   },
 
@@ -436,6 +446,43 @@ export const healthRepository = {
     }
     await db.update(chatSessions).set({ updatedAt: new Date() }).where(eq(chatSessions.id, sessionId));
     return saved;
+  },
+
+  // History search for the MCP search tool. The active list already rides in
+  // every context load, so this exists for what that list deliberately
+  // leaves out: superseded facts ("what was the dose before?") and long
+  // series. Plain ILIKE per term — a workspace is hundreds of rows, not a
+  // corpus, so no index or FTS is earning its keep yet.
+  async searchMemories(
+    workspaceId: string,
+    filters: {
+      query?: string | null;
+      metric?: string | null;
+      kind?: string | null;
+      from?: string | null;
+      to?: string | null;
+      includeSuperseded?: boolean;
+      limit?: number;
+    },
+  ) {
+    const conditions: SQL[] = [eq(memories.workspaceId, workspaceId)];
+    if (!filters.includeSuperseded) conditions.push(isNull(memories.supersededById));
+    for (const term of (filters.query ?? "").split(/\s+/).filter(Boolean).slice(0, 8)) {
+      conditions.push(ilike(memories.content, `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`));
+    }
+    const metric = normalizeMetric(filters.metric);
+    if (metric) conditions.push(eq(memories.metric, metric));
+    if (filters.kind) conditions.push(eq(memories.kind, filters.kind));
+    if (filters.from) conditions.push(gte(memories.happenedOn, filters.from));
+    if (filters.to) conditions.push(lte(memories.happenedOn, filters.to));
+
+    const rows = await db
+      .select()
+      .from(memories)
+      .where(and(...conditions))
+      .orderBy(...memoryOrder)
+      .limit(Math.min(Math.max(filters.limit ?? 50, 1), 200));
+    return rows.map(toMemory);
   },
 
   async listMemoriesBySource(sourceId: string) {

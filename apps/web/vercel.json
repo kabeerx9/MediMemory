@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://caretalk-server.vercel.app/api/:path*" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/.well-known/:path*", "destination": "https://caretalk-server.vercel.app/.well-known/:path*" },
+    { "source": "/((?!api/|\\.well-known/).*)", "destination": "/index.html" }
   ]
 }

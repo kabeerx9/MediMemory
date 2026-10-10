@@ -881,3 +881,20 @@ client message id never overwrites another session's message.
   authoritative; an untagged reading is invisible to Trends but never lost.
 - **Import dedup is keyed on a hash of title + text + file bytes.** A re-scan of
   the same page produces different bytes and correctly counts as a new document.
+- **MCP: one scope, full access.** A connected app can read and save across all
+  workspaces; the consent screen says so. Per-workspace scopes would be the
+  next step if more than one person ever uses an instance.
+- **MCP: a refresh racing Disconnect can leave a rotated refresh token.** It
+  can't call any tool (the consent check rejects it), but it would work again if
+  the same app is later reconnected. Closing it fully needs a consent check on
+  the refresh grant itself.
+- **Consent can't verify self-registered apps.** Dynamically registered clients
+  choose their own name and logo, so the consent screen leads with where access
+  is actually sent (from the signed request) and warns on a mismatch. Only
+  metadata-document (CIMD) clients get "verified".
+- **Report originals outlive their rows.** Deleting a source cascades its
+  `source_files` rows but not the bytes in `FILES_DIR`. There's no delete route
+  today; add file cleanup with one.
+- **The upload rate limit is per IP as Fastify sees it.** Behind a proxy without
+  `trustProxy`, that's one shared bucket. Tokens are 256-bit, so it's an abuse
+  cap, not an access control.

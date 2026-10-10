@@ -1,12 +1,12 @@
 import { Button } from "@caretalk/ui/components/button";
 import { Card, CardContent } from "@caretalk/ui/components/card";
-import { BookOpenText, History, Loader2, PenLine, ShieldCheck } from "lucide-react";
+import { AlertTriangle, BadgeCheck, BookOpenText, History, Loader2, PenLine, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
 
 import { CenteredScreen, ConnectPair } from "./connect-visuals";
-import { displayHost, useOAuthClient } from "./use-oauth-client";
+import { describeTrust, useOAuthClient } from "./use-oauth-client";
 
 type ConsentResponse = { url?: string; redirect_uri?: string };
 
@@ -72,7 +72,7 @@ export function ConsentPage() {
   }
 
   const name = client?.name ?? "This app";
-  const host = displayHost(client?.uri ?? null);
+  const trust = describeTrust(client, window.location.search);
 
   return (
     <CenteredScreen>
@@ -85,10 +85,35 @@ export function ConsentPage() {
                 {client ? `Connect ${name} to Caretalk?` : "Connect to Caretalk?"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {host ? <>{host} · </> : null}
                 signed in as <span className="font-medium text-foreground">{session?.user.email ?? "…"}</span>
               </p>
             </div>
+          </div>
+
+          <div
+            className={
+              trust.mismatch
+                ? "space-y-1 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm"
+                : "space-y-1 rounded-lg border border-border bg-[var(--surface-subtle)] px-3 py-2.5 text-sm"
+            }
+          >
+            <p className="flex items-center gap-1.5 text-foreground">
+              {trust.verified ? (
+                <BadgeCheck className="size-4 shrink-0 text-[var(--sentri-accent-violet-deep)] dark:text-sentri-lime" />
+              ) : (
+                <AlertTriangle className={trust.mismatch ? "size-4 shrink-0 text-destructive" : "size-4 shrink-0 text-muted-foreground"} />
+              )}
+              <span>
+                Access will be sent to <span className="font-semibold">{trust.redirectHost ?? "an unknown address"}</span>
+              </span>
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {trust.mismatch
+                ? `This app calls itself “${name}” at ${trust.claimedHost}, but is sending access somewhere else. Don't allow unless you trust ${trust.redirectHost}.`
+                : trust.verified
+                  ? `Verified: this app is identified by ${trust.redirectHost}.`
+                  : `The name and logo above were chosen by the app itself. Only allow if you just started connecting from ${trust.redirectHost ?? "an app you trust"}.`}
+            </p>
           </div>
 
           <ul className="space-y-4">

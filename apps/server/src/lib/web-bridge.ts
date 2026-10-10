@@ -40,8 +40,10 @@ export function toWebRequest(request: FastifyRequest, pathOverride?: string): Re
 export async function sendWebResponse(reply: FastifyReply, response: Response) {
   reply.status(response.status);
   response.headers.forEach((value, key) => {
-    // Node recomputes these for the bytes it actually writes.
-    if (key === "content-length" || key === "transfer-encoding") return;
+    // Node recomputes these for the bytes it actually writes. Set-Cookie is
+    // written once below: forEach yields each cookie separately and Fastify
+    // appends, so handling it here too sent every cookie twice.
+    if (key === "content-length" || key === "transfer-encoding" || key === "set-cookie") return;
     reply.header(key, value);
   });
   // getSetCookie keeps multiple Set-Cookie headers separate; forEach would

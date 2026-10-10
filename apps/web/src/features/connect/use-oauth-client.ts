@@ -61,3 +61,22 @@ export function displayHost(uri: string | null) {
     return null;
   }
 }
+
+/**
+ * What the consent screen can actually vouch for. Name, logo and client_uri
+ * are whatever the app registered — an impostor can call itself "Claude". Two
+ * things it can't fake: the redirect host (part of the server-signed request
+ * in this page's URL), and, for apps identified by a Client ID Metadata
+ * Document, the https domain that IS the client_id.
+ */
+export function describeTrust(client: OAuthClientInfo | null, search: string) {
+  const redirectHost = displayHost(new URLSearchParams(search).get("redirect_uri"));
+  const cimdHost = client?.clientId.startsWith("https://") ? displayHost(client.clientId) : null;
+  const claimedHost = displayHost(client?.uri ?? null);
+  const sameSite = (a: string | null, b: string | null) =>
+    Boolean(a && b && (a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`)));
+
+  const verified = Boolean(cimdHost && redirectHost && sameSite(cimdHost, redirectHost));
+  const mismatch = Boolean(claimedHost && redirectHost && !sameSite(claimedHost, redirectHost));
+  return { redirectHost, verified, mismatch, claimedHost };
+}

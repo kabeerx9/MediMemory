@@ -18,7 +18,20 @@ export function buildApp() {
   // bodyLimit: Fastify defaults to 1MiB, which rejects import requests
   // carrying a base64 file. 8MiB gives headroom locally; on Vercel the
   // platform's own ~4.5MB request cap bites first.
-  const fastify = Fastify({ logger: true, bodyLimit: 8 * 1024 * 1024 });
+  const fastify = Fastify({
+    // Upload-link tokens are bearer credentials that ride in the URL; keep
+    // them out of request logs.
+    logger: {
+      serializers: {
+        req: (request) => ({
+          method: request.method,
+          url: request.url.replace(/(\/api\/v1\/uploads\/)[^/?#]+/, "$1[redacted]"),
+          remoteAddress: request.ip,
+        }),
+      },
+    },
+    bodyLimit: 8 * 1024 * 1024,
+  });
 
   fastify.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpError) {

@@ -1,6 +1,7 @@
 import { env } from "@caretalk/env/web";
 import type {
   ChatSession,
+  ConnectionsResponse,
   CreateChatSessionInput,
   ExportResponse,
   CreateMemoryInput,
@@ -9,6 +10,9 @@ import type {
   ImportResponse,
   Memory,
   ProfileVersionsResponse,
+  ReportsResponse,
+  SourceFile,
+  UploadLinkInfo,
   UpdateMemoryInput,
   UpdateWorkspaceInput,
   Workspace,
@@ -133,4 +137,64 @@ export const healthApi = {
       method: "POST",
       body: JSON.stringify({ timeZone: clientTimeZone(), ...input }),
     }),
+
+  listReports: (workspaceId: string) =>
+    apiFetch<ReportsResponse>("/api/v1/workspaces/" + workspaceId + "/reports"),
+
+  attachFile: (workspaceId: string, sourceId: string, file: File) =>
+    apiFetch<SourceFile>("/api/v1/workspaces/" + workspaceId + "/reports/" + sourceId + "/files", {
+      method: "POST",
+      body: file,
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "X-File-Name": encodeURIComponent(file.name),
+      },
+    }),
+
+  fileUrl: (workspaceId: string, fileId: string, options?: { download?: boolean }) =>
+    SERVER_URL +
+    "/api/v1/workspaces/" +
+    workspaceId +
+    "/files/" +
+    fileId +
+    (options?.download ? "?download=1" : ""),
+
+  getConnections: () => apiFetch<ConnectionsResponse>("/api/v1/connections"),
+
+  disconnect: (clientId: string) =>
+    apiFetch<{ ok: true }>("/api/v1/connections/" + encodeURIComponent(clientId), { method: "DELETE" }),
+
+  getUploadLink: (token: string) => apiFetch<UploadLinkInfo>("/api/v1/uploads/" + encodeURIComponent(token)),
 };
+
+/**
+ * Upload with progress through a one-time link. XHR rather than fetch: fetch
+ * still has no upload progress, and on a phone with a 15 MB scan the bar is
+ * the difference between "working" and "frozen".
+ */
+export function uploadWithLink(token: string, file: File, onProgress: (fraction: number) => void) {
+  return new Promise<{ fileName: string; sizeBytes: number }>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", SERVER_URL + "/api/v1/uploads/" + encodeURIComponent(token));
+    request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    request.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+    request.onload = () => {
+      let body: { error?: string; fileName?: string; sizeBytes?: number } = {};
+      try {
+        body = JSON.parse(request.responseText);
+      } catch {
+        // Non-JSON error page (e.g. a proxy's 413); fall through to the status.
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve({ fileName: body.fileName ?? file.name, sizeBytes: body.sizeBytes ?? file.size });
+      } else {
+        reject(new Error(body.error ?? (request.status === 413 ? "That file is too large." : "Upload failed")));
+      }
+    };
+    request.onerror = () => reject(new Error("Network error — check your connection and try again."));
+    request.send(file);
+  });
+}

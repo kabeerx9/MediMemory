@@ -1,11 +1,26 @@
-import type { Memory, MemoryKind } from "@caretalk/contracts/health";
+import type { Memory, MemoryKind, WorkspaceDetail } from "@caretalk/contracts/health";
 import { cn } from "@caretalk/ui/lib/utils";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { toast } from "sonner";
 
 import { healthApi } from "@/features/health/api";
 import { formatDate, kindMeta, memoryKinds } from "@/features/health/kind-meta";
+
+type SourceSummary = WorkspaceDetail["sources"][number];
+
+// Provenance lookup for every row in the rail, keyed by source id. Context
+// rather than a prop because rows render from several rail sections.
+export const MemorySourcesContext = createContext<ReadonlyMap<string, SourceSummary>>(new Map());
+
+/** "via Claude" / "from KFT report" — only for facts that didn't come from this app's own chat. */
+export function provenanceLabel(source: SourceSummary | undefined) {
+  if (!source) return null;
+  if (source.type === "mcp") return `via ${source.clientName ?? source.title ?? "an AI app"}`;
+  if (source.type === "report") return `from ${source.title ?? "a report"}${source.clientName ? ` · ${source.clientName}` : ""}`;
+  if (source.type === "import") return `from ${source.title ?? "an import"}`;
+  return null;
+}
 
 export function MemoryRow({
   memory,
@@ -24,6 +39,8 @@ export function MemoryRow({
   const superseded = Boolean(memory.supersededById);
   const meta = kindMeta[memory.kind] ?? kindMeta.note;
   const Icon = meta.icon;
+  const sources = useContext(MemorySourcesContext);
+  const provenance = provenanceLabel(memory.sourceId ? sources.get(memory.sourceId) : undefined);
 
   async function save() {
     setBusy(true);
@@ -117,7 +134,10 @@ export function MemoryRow({
         <p className={cn("text-sm leading-snug text-foreground", superseded && "line-through opacity-60")}>
           {memory.content}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(memory.happenedOn)}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {formatDate(memory.happenedOn)}
+          {provenance ? <span title={provenance}> · {provenance}</span> : null}
+        </p>
       </div>
       <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
         <button

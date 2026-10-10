@@ -6,7 +6,7 @@ import { Label } from "@caretalk/ui/components/label";
 import { Textarea } from "@caretalk/ui/components/textarea";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, FileText, NotebookPen, Paperclip, Sparkles, X } from "lucide-react";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { healthApi } from "@/features/health/api";
@@ -23,6 +23,15 @@ export function ImportPage({ workspaceId }: { workspaceId: string }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Whether this server keeps originals decides what the copy promises.
+  const [keepsOriginals, setKeepsOriginals] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void healthApi
+      .listReports(workspaceId)
+      .then((response) => setKeepsOriginals(response.fileStorageEnabled))
+      .catch(() => setKeepsOriginals(null));
+  }, [workspaceId]);
 
   async function pickFile(picked: File | undefined) {
     if (!picked) return;
@@ -92,8 +101,9 @@ export function ImportPage({ workspaceId }: { workspaceId: string }) {
         <h1 className="font-display text-2xl font-semibold tracking-tight">Import notes</h1>
         <p className="text-sm text-muted-foreground">
           Paste a doctor's note or attach a report — a PDF or a photo of it. Caretalk will pull out
-          the durable facts and save them the same way it would in conversation. The file itself is
-          read once and never stored.
+          the durable facts and save them the same way it would in conversation.
+          {keepsOriginals === true ? " The original is kept with the facts under Reports." : null}
+          {keepsOriginals === false ? " The file itself is read once and not stored on this server." : null}
         </p>
       </div>
 

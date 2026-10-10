@@ -77,7 +77,8 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
       // The type was sniffed on the way in; nosniff keeps the browser from
       // second-guessing it.
       .header("x-content-type-options", "nosniff")
-      .header("cache-control", "private, max-age=300");
+      // Medical documents: never written to a (possibly shared) disk cache.
+      .header("cache-control", "private, no-store");
     // Images get a locked-down CSP. PDFs can't: Chrome's viewer refuses to
     // render under `sandbox`, and the viewer is its own isolated context.
     if (file.mediaType.startsWith("image/")) {

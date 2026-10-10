@@ -12,10 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkspacesRouteImport } from './routes/workspaces'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkspacesIndexRouteImport } from './routes/workspaces/index'
 import { Route as WorkspacesWorkspaceIdRouteImport } from './routes/workspaces/$workspaceId'
+import { Route as UploadTokenRouteImport } from './routes/upload/$token'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as WorkspacesWorkspaceIdIndexRouteImport } from './routes/workspaces/$workspaceId/index'
+import { Route as WorkspacesWorkspaceIdReportsRouteImport } from './routes/workspaces/$workspaceId/reports'
 import { Route as WorkspacesWorkspaceIdImportRouteImport } from './routes/workspaces/$workspaceId/import'
 
 const WorkspacesRoute = WorkspacesRouteImport.update({
@@ -33,6 +37,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -48,10 +57,26 @@ const WorkspacesWorkspaceIdRoute = WorkspacesWorkspaceIdRouteImport.update({
   path: '/$workspaceId',
   getParentRoute: () => WorkspacesRoute,
 } as any)
+const UploadTokenRoute = UploadTokenRouteImport.update({
+  id: '/upload/$token',
+  path: '/upload/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkspacesWorkspaceIdIndexRoute =
   WorkspacesWorkspaceIdIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => WorkspacesWorkspaceIdRoute,
+  } as any)
+const WorkspacesWorkspaceIdReportsRoute =
+  WorkspacesWorkspaceIdReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
     getParentRoute: () => WorkspacesWorkspaceIdRoute,
   } as any)
 const WorkspacesWorkspaceIdImportRoute =
@@ -63,69 +88,96 @@ const WorkspacesWorkspaceIdImportRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/workspaces': typeof WorkspacesRouteWithChildren
+  '/oauth/consent': typeof OauthConsentRoute
+  '/upload/$token': typeof UploadTokenRoute
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteWithChildren
   '/workspaces/': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
   '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/upload/$token': typeof UploadTokenRoute
   '/workspaces': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/connections': typeof ConnectionsRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/workspaces': typeof WorkspacesRouteWithChildren
+  '/oauth/consent': typeof OauthConsentRoute
+  '/upload/$token': typeof UploadTokenRoute
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteWithChildren
   '/workspaces/': typeof WorkspacesIndexRoute
   '/workspaces/$workspaceId/import': typeof WorkspacesWorkspaceIdImportRoute
+  '/workspaces/$workspaceId/reports': typeof WorkspacesWorkspaceIdReportsRoute
   '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/connections'
     | '/dashboard'
     | '/login'
     | '/workspaces'
+    | '/oauth/consent'
+    | '/upload/$token'
     | '/workspaces/$workspaceId'
     | '/workspaces/'
     | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/reports'
     | '/workspaces/$workspaceId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/connections'
     | '/dashboard'
     | '/login'
+    | '/oauth/consent'
+    | '/upload/$token'
     | '/workspaces'
     | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/reports'
     | '/workspaces/$workspaceId'
   id:
     | '__root__'
     | '/'
+    | '/connections'
     | '/dashboard'
     | '/login'
     | '/workspaces'
+    | '/oauth/consent'
+    | '/upload/$token'
     | '/workspaces/$workspaceId'
     | '/workspaces/'
     | '/workspaces/$workspaceId/import'
+    | '/workspaces/$workspaceId/reports'
     | '/workspaces/$workspaceId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConnectionsRoute: typeof ConnectionsRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   WorkspacesRoute: typeof WorkspacesRouteWithChildren
+  OauthConsentRoute: typeof OauthConsentRoute
+  UploadTokenRoute: typeof UploadTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -172,11 +231,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesWorkspaceIdRouteImport
       parentRoute: typeof WorkspacesRoute
     }
+    '/upload/$token': {
+      id: '/upload/$token'
+      path: '/upload/$token'
+      fullPath: '/upload/$token'
+      preLoaderRoute: typeof UploadTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workspaces/$workspaceId/': {
       id: '/workspaces/$workspaceId/'
       path: '/'
       fullPath: '/workspaces/$workspaceId/'
       preLoaderRoute: typeof WorkspacesWorkspaceIdIndexRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdRoute
+    }
+    '/workspaces/$workspaceId/reports': {
+      id: '/workspaces/$workspaceId/reports'
+      path: '/reports'
+      fullPath: '/workspaces/$workspaceId/reports'
+      preLoaderRoute: typeof WorkspacesWorkspaceIdReportsRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdRoute
     }
     '/workspaces/$workspaceId/import': {
@@ -191,11 +271,13 @@ declare module '@tanstack/react-router' {
 
 interface WorkspacesWorkspaceIdRouteChildren {
   WorkspacesWorkspaceIdImportRoute: typeof WorkspacesWorkspaceIdImportRoute
+  WorkspacesWorkspaceIdReportsRoute: typeof WorkspacesWorkspaceIdReportsRoute
   WorkspacesWorkspaceIdIndexRoute: typeof WorkspacesWorkspaceIdIndexRoute
 }
 
 const WorkspacesWorkspaceIdRouteChildren: WorkspacesWorkspaceIdRouteChildren = {
   WorkspacesWorkspaceIdImportRoute: WorkspacesWorkspaceIdImportRoute,
+  WorkspacesWorkspaceIdReportsRoute: WorkspacesWorkspaceIdReportsRoute,
   WorkspacesWorkspaceIdIndexRoute: WorkspacesWorkspaceIdIndexRoute,
 }
 
@@ -220,9 +302,12 @@ const WorkspacesRouteWithChildren = WorkspacesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConnectionsRoute: ConnectionsRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   WorkspacesRoute: WorkspacesRouteWithChildren,
+  OauthConsentRoute: OauthConsentRoute,
+  UploadTokenRoute: UploadTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

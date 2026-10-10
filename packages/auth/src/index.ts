@@ -99,6 +99,10 @@ export function createAuth() {
         // with no user behind it — useless here, and one more thing an
         // anonymously registered client could ask for.
         grantTypes: ["authorization_code", "refresh_token"],
+        // Lets the login page name the app asking ("Sign in to connect
+        // Claude") before there's a session. Gated on the signed OAuth query,
+        // so it only answers for an authorization actually in progress.
+        allowPublicClientPrelogin: true,
       }),
       cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
     ],

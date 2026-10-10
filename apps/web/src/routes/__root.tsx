@@ -43,7 +43,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
 function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAuthPage = pathname === "/login";
+  // Standalone screens: no app header, and their own scroll. Consent and
+  // upload are reached from inside another app, where Caretalk's chrome
+  // would only confuse.
+  const isAuthPage =
+    pathname === "/login" || pathname.startsWith("/oauth/") || pathname.startsWith("/upload/");
 
   return (
     <>
@@ -58,7 +62,7 @@ function RootComponent() {
           <div
             className={
               isAuthPage
-                ? "h-svh bg-background"
+                ? "h-svh overflow-y-auto bg-background"
                 : "grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden overscroll-none bg-background [&>*:last-child]:min-h-0 [&>*:last-child]:overflow-hidden"
             }
           >

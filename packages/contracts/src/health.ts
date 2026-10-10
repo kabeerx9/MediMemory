@@ -433,6 +433,28 @@ export const exportResponseSchema = z.object({
 export type ExportResponse = z.infer<typeof exportResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// Connected apps (external AI clients holding an OAuth grant over MCP)
+// ---------------------------------------------------------------------------
+
+export const connectionSchema = z.object({
+  clientId: z.string(),
+  name: z.string(),
+  icon: z.string().nullable(),
+  uri: z.string().nullable(),
+  scopes: z.array(z.string()),
+  connectedAt: z.string(),
+});
+export type Connection = z.infer<typeof connectionSchema>;
+
+export const connectionsResponseSchema = z.object({
+  // The URL to paste into Claude/ChatGPT. Comes from the server so it always
+  // matches the audience tokens are bound to.
+  mcpUrl: z.string(),
+  connections: z.array(connectionSchema),
+});
+export type ConnectionsResponse = z.infer<typeof connectionsResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Route params
 // ---------------------------------------------------------------------------
 

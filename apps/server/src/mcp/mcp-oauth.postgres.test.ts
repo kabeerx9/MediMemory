@@ -41,6 +41,17 @@ async function signUp(label: string): Promise<Session> {
   return { userId: response.json().user.id, cookie: cookieHeader(response.headers["set-cookie"]) };
 }
 
+async function signIn(label: string, userId: string): Promise<Session> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/auth/sign-in/email",
+    headers: { "content-type": "application/json", origin: "http://localhost:3001" },
+    payload: { email: `mcp-${label}-${runId}@example.test`, password: "correct-horse-battery" },
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  return { userId, cookie: cookieHeader(response.headers["set-cookie"]) };
+}
+
 async function registerClient(name: string) {
   const response = await app.inject({
     method: "POST",
@@ -130,6 +141,20 @@ async function mcp(token: string | null, method: string, params: Record<string, 
     ? response.body.split("\n").find((line) => line.startsWith("data:"))?.slice(5).trim() ?? "{}"
     : response.body;
   return { status: response.statusCode, headers: response.headers, body: body ? JSON.parse(body) : null };
+}
+
+async function refresh(clientId: string, refreshToken: string) {
+  return app.inject({
+    method: "POST",
+    url: "/api/auth/oauth2/token",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    payload: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      resource: mcpResourceUrl,
+    }).toString(),
+  });
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown>) {
@@ -330,5 +355,76 @@ describeDb("MCP over OAuth, end to end", () => {
         expect.objectContaining({ content: "Metformin increased to 1000 mg daily", superseded: false }),
       ]),
     );
+  });
+
+  describe("connection lifecycle", () => {
+    let session: Session;
+    let clientId: string;
+    let tokens: { access_token: string; refresh_token?: string };
+
+    beforeAll(async () => {
+      session = await signUp("lifecycle");
+      clientId = await registerClient("ChatGPT");
+      tokens = await authorize(session, clientId);
+    });
+
+    afterAll(async () => {
+      await db.delete(user).where(eq(user.id, session.userId));
+    });
+
+    it("issues a refresh token that rotates", async () => {
+      expect(tokens.refresh_token).toBeTruthy();
+      const response = await refresh(clientId, tokens.refresh_token ?? "");
+      expect(response.statusCode, response.body).toBe(200);
+      tokens = response.json();
+      expect((await mcp(tokens.access_token, "tools/list")).status).toBe(200);
+    });
+
+    it("lists the app under connections", async () => {
+      const response = await app.inject({ method: "GET", url: "/api/v1/connections", headers: { cookie: session.cookie } });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.mcpUrl).toBe(mcpResourceUrl);
+      expect(body.connections).toEqual([expect.objectContaining({ clientId, name: "ChatGPT" })]);
+    });
+
+    it("won't let another user disconnect it", async () => {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/connections/${encodeURIComponent(clientId)}`,
+        headers: { cookie: stranger.cookie },
+      });
+      expect(response.statusCode).toBe(404);
+      expect((await mcp(tokens.access_token, "tools/list")).status).toBe(200);
+    });
+
+    it("survives signing out of the web app", async () => {
+      const signOut = await app.inject({
+        method: "POST",
+        url: "/api/auth/sign-out",
+        headers: { cookie: session.cookie, origin: "http://localhost:3001", "content-type": "application/json" },
+        payload: {},
+      });
+      expect(signOut.statusCode).toBe(200);
+      const response = await refresh(clientId, tokens.refresh_token ?? "");
+      expect(response.statusCode, response.body).toBe(200);
+      tokens = response.json();
+      expect((await mcp(tokens.access_token, "tools/list")).status).toBe(200);
+      session = await signIn("lifecycle", session.userId);
+    });
+
+    it("revokes immediately on disconnect — live token and refresh token both", async () => {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/connections/${encodeURIComponent(clientId)}`,
+        headers: { cookie: session.cookie },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const call = await mcp(tokens.access_token, "tools/list");
+      expect(call.status).toBe(401);
+      expect(String(call.headers["www-authenticate"])).toContain('error="invalid_token"');
+      expect((await refresh(clientId, tokens.refresh_token ?? "")).statusCode).toBeGreaterThanOrEqual(400);
+    });
   });
 });

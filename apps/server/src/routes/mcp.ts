@@ -16,9 +16,14 @@ import { sendWebResponse, toWebRequest } from "../lib/web-bridge";
 // Steps 2 and 3 live at the ORIGIN root (/.well-known/...), per RFC 9728 and
 // RFC 8414, so they're forwarded into the auth handler from here.
 
+const resourceMetadataUrl = new URL(
+  `/.well-known/oauth-protected-resource${new URL(mcpResourceUrl).pathname}`,
+  mcpResourceUrl,
+).toString();
+
 const protectedMcp = requireMcpAuth(
   auth,
-  (request, claims) => mcpHttpHandler(request, claims),
+  (request, claims) => mcpHttpHandler(request, claims, resourceMetadataUrl),
   { resource: mcpResourceUrl },
 );
 

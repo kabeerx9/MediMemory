@@ -7,6 +7,7 @@ import Fastify from "fastify";
 import { HttpError } from "./lib/http-error";
 import { sendWebResponse, toWebRequest } from "./lib/web-bridge";
 import { healthMemoryRoutes } from "./routes/health-memory";
+import { connectionRoutes } from "./routes/connections";
 import { mcpRoutes } from "./routes/mcp";
 import { reportRoutes } from "./routes/reports";
 
@@ -48,6 +49,7 @@ export function buildApp() {
   });
   fastify.register(healthMemoryRoutes);
   fastify.register(reportRoutes);
+  fastify.register(connectionRoutes);
 
   // OAuth token, revocation, and (optionally) authorize requests are
   // form-encoded. Keep the raw string: better-auth parses it itself, and

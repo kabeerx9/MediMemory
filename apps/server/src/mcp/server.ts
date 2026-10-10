@@ -10,6 +10,7 @@ import { z } from "zod";
 import { HttpError } from "../lib/http-error";
 import { SAVE_MEMORY_DESCRIPTION, UPDATE_PROFILE_DESCRIPTION, saveMemory, writeProfile } from "../lib/memory-tools";
 import { resolveTimeZone, todayIn } from "../lib/time";
+import { connectionsRepository } from "../repositories/connections-repository";
 import { healthRepository } from "../repositories/health-repository";
 import { reportsRepository } from "../repositories/reports-repository";
 import { reportsService } from "../services/reports-service";
@@ -296,11 +297,40 @@ const handler = createMcpHandler(async ({ authInfo }) => {
   return buildMcpServer(caller);
 });
 
-export async function mcpHttpHandler(request: Request, claims: JWTPayload): Promise<Response> {
+function invalidToken(description: string, resourceMetadataUrl: string): Response {
+  return new Response(
+    JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message: description }, id: null }),
+    {
+      status: 401,
+      headers: {
+        "content-type": "application/json",
+        // Same challenge shape as a missing token, so the client re-runs the
+        // OAuth flow instead of failing silently.
+        "www-authenticate": `Bearer error="invalid_token", error_description="${description}", resource_metadata="${resourceMetadataUrl}"`,
+      },
+    },
+  );
+}
+
+/**
+ * Runs after the JWT is verified (signature, issuer, audience, expiry).
+ * Adds the one check a stateless JWT can't make: the user hasn't since
+ * disconnected this app. Without it, Disconnect would only take effect when
+ * the current access token expired.
+ */
+export async function mcpHttpHandler(
+  request: Request,
+  claims: JWTPayload,
+  resourceMetadataUrl: string,
+): Promise<Response> {
   if (typeof claims.sub !== "string" || claims.sub.length === 0) {
-    return new Response(JSON.stringify({ error: "Token has no subject" }), { status: 401 });
+    return invalidToken("Token has no subject", resourceMetadataUrl);
   }
-  const caller: McpCaller = { userId: claims.sub, client: await resolveClient(claims) };
+  const client = await resolveClient(claims);
+  if (!client || !(await connectionsRepository.isConnected(claims.sub, client.id))) {
+    return invalidToken("This app was disconnected from Caretalk", resourceMetadataUrl);
+  }
+  const caller: McpCaller = { userId: claims.sub, client };
   const scopes = typeof claims.scope === "string" ? claims.scope.split(" ").filter(Boolean) : [];
   return handler.fetch(request, {
     authInfo: {

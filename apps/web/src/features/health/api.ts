@@ -15,6 +15,8 @@ import type {
   UploadLinkInfo,
   UpdateMemoryInput,
   UpdateWorkspaceInput,
+  WhoopStatus,
+  WhoopSyncResult,
   Workspace,
   WorkspaceDetail,
 } from "@caretalk/contracts/health";
@@ -163,6 +165,18 @@ export const healthApi = {
 
   disconnect: (clientId: string) =>
     apiFetch<{ ok: true }>("/api/v1/connections/" + encodeURIComponent(clientId), { method: "DELETE" }),
+
+  getWhoop: (workspaceId: string) =>
+    apiFetch<WhoopStatus>("/api/v1/whoop?workspaceId=" + encodeURIComponent(workspaceId)),
+
+  syncWhoop: (workspaceId: string) =>
+    apiFetch<WhoopSyncResult>("/api/v1/whoop/sync", { method: "POST", body: JSON.stringify({ workspaceId }) }),
+
+  disconnectWhoop: (workspaceId: string) =>
+    apiFetch<{ ok: true }>("/api/v1/whoop?workspaceId=" + encodeURIComponent(workspaceId), { method: "DELETE" }),
+
+  // A full-page navigation, not a fetch: the server redirects on to WHOOP's consent page.
+  whoopConnectUrl: (workspaceId: string) => SERVER_URL + "/api/whoop/connect?workspaceId=" + encodeURIComponent(workspaceId),
 
   getUploadLink: (token: string) => apiFetch<UploadLinkInfo>("/api/v1/uploads/" + encodeURIComponent(token)),
 };

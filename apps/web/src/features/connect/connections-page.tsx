@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { healthApi } from "@/features/health/api";
 
 import { AppAvatar } from "./connect-visuals";
+import { WhoopCard } from "./whoop-card";
 
 type Guide = "claude" | "chatgpt" | "other";
 
@@ -170,6 +171,18 @@ export function ConnectionsPage() {
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="space-y-3" aria-labelledby="devices">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground" id="devices">
+              Devices
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Wearable data lands next to the medical record, so any connected app can relate the two.
+            </p>
+          </div>
+          <WhoopCard />
         </section>
       </div>
     </div>

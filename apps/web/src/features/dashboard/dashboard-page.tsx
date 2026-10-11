@@ -121,8 +121,12 @@ export function DashboardPage() {
   const measurements = useMemo(() => measurementSeriesInRange(memories, range), [memories, range]);
   const connection = status?.connection ?? null;
 
+  // The app shell clips its last child (overflow-hidden) so pages like chat can
+  // manage their own scrolling; this outer frame takes that clip and the
+  // inner element scrolls.
   return (
-    <div className="whoop-dash min-h-0 flex-1 overflow-y-auto">
+    <div className="flex min-h-0 flex-col">
+    <div className="whoop-dash min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:py-10">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -230,6 +234,7 @@ export function DashboardPage() {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 }

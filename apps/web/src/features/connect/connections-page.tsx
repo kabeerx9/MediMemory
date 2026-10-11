@@ -85,8 +85,10 @@ export function ConnectionsPage() {
     void load();
   }, []);
 
+  // Outer frame takes the app shell's last-child clip; the inner element scrolls.
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="flex min-h-0 flex-col">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-10">
         <header className="space-y-2">
           <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -196,6 +198,7 @@ export function ConnectionsPage() {
           <ApiTokensCard />
         </section>
       </div>
+    </div>
     </div>
   );
 }

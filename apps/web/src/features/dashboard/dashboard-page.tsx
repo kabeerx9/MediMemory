@@ -10,6 +10,7 @@ import { healthApi } from "@/features/health/api";
 import { MedicationsPanel } from "./medications-panel";
 import { MetricChart, shortDate } from "./metric-chart";
 import { Ring } from "./ring";
+import { WhoopWorkouts } from "./whoop-workouts";
 import {
   addDays,
   currentMedications,
@@ -58,6 +59,7 @@ const fmt = {
 };
 
 type Workout = Awaited<ReturnType<typeof healthApi.getWorkouts>>["workouts"][number];
+type WhoopWorkout = Awaited<ReturnType<typeof healthApi.getWhoopWorkouts>>["workouts"][number];
 
 export function DashboardPage() {
   const today = useMemo(localToday, []);
@@ -69,6 +71,7 @@ export function DashboardPage() {
   const [rows, setRows] = useState<DayRow[] | null>(null);
   const [hermesRows, setHermesRows] = useState<DayRow[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [whoopWorkouts, setWhoopWorkouts] = useState<WhoopWorkout[]>([]);
   const [syncing, setSyncing] = useState(false);
 
   const range = useMemo(() => rangeFor(rangeDays, today), [rangeDays, today]);
@@ -77,13 +80,15 @@ export function DashboardPage() {
     async (workspaceId: string) => {
       // Six extra days so the first visible day already has a full 7-day average.
       // Workouts are optional: their failure must never blank the charts.
-      const [response, workoutLog] = await Promise.all([
+      const [response, workoutLog, whoopLog] = await Promise.all([
         healthApi.getDailyMetrics(workspaceId, addDays(range.from, -6), range.to),
         healthApi.getWorkouts(workspaceId, range.from, range.to).catch(() => ({ workouts: [] })),
+        healthApi.getWhoopWorkouts(workspaceId, range.from, range.to).catch(() => ({ workouts: [] })),
       ]);
       setRows(response.days.filter((d) => d.source === "whoop") as DayRow[]);
       setHermesRows(response.days.filter((d) => d.source === "hermes") as DayRow[]);
       setWorkouts(workoutLog.workouts);
+      setWhoopWorkouts(whoopLog.workouts);
     },
     [range],
   );
@@ -252,6 +257,8 @@ export function DashboardPage() {
                   </section>
                 ) : null}
 
+                {whoopWorkouts.length > 0 ? <WhoopWorkouts workouts={whoopWorkouts} /> : null}
+
                 {workouts.length > 0 ? <Workouts workouts={workouts} /> : null}
               </main>
             </>
@@ -383,6 +390,7 @@ const CHARTS: ChartSpec[] = [
   { key: "recoveryScore", title: "Recovery", unit: "%", color: "var(--wd-neutral)", format: fmt.pct, domain: [0, 100], source: "whoop" },
   { key: "hrvMs", title: "HRV", unit: "ms", color: "var(--wd-neutral)", format: fmt.int, source: "whoop" },
   { key: "restingHr", title: "Resting heart rate", unit: "bpm", color: "var(--wd-neutral)", format: fmt.int, source: "whoop" },
+  { key: "avgHr", title: "Average heart rate", unit: "bpm", color: "var(--wd-neutral)", format: fmt.int, source: "whoop" },
   { key: "sleepMinutes", title: "Sleep", unit: "h", color: "var(--wd-sleep)", format: fmt.one, transform: (v) => v / 60, source: "whoop" },
   { key: "strain", title: "Day strain", color: "var(--wd-strain)", format: fmt.one, domain: [0, 21], source: "whoop" },
   { key: "steps", title: "Steps", color: "var(--wd-neutral)", format: fmt.int, source: "whoop" },
@@ -517,6 +525,8 @@ const TABLE_COLUMNS: Array<{ key: string; label: string; format: (v: number) => 
   { key: "recoveryScore", label: "Recovery %", format: fmt.pct, source: "whoop" },
   { key: "hrvMs", label: "HRV ms", format: fmt.int, source: "whoop" },
   { key: "restingHr", label: "Resting HR", format: fmt.int, source: "whoop" },
+  { key: "avgHr", label: "Avg HR", format: fmt.int, source: "whoop" },
+  { key: "maxHr", label: "Max HR", format: fmt.int, source: "whoop" },
   { key: "sleepMinutes", label: "Sleep h", format: fmt.hours, source: "whoop" },
   { key: "strain", label: "Strain", format: fmt.one, source: "whoop" },
   { key: "steps", label: "Steps", format: fmt.int, source: "whoop" },
@@ -543,7 +553,7 @@ function DataTable({ rows, hermesRows, range }: { rows: DayRow[]; hermesRows: Da
       </button>
       {open ? (
         <div className="mt-3 overflow-x-auto rounded-2xl bg-[var(--wd-card)]">
-          <table className="w-full min-w-[640px] text-sm tabular-nums">
+          <table className="w-full min-w-[760px] text-sm tabular-nums">
             <thead>
               <tr className="text-left text-xs text-[var(--wd-muted)]">
                 <th className="px-4 py-2.5 font-medium">Date</th>

@@ -152,3 +152,21 @@ export function valueDomain(values: number[], fixed?: [number, number]): [number
   max += pad;
   return [min, max];
 }
+
+export type ZoneSegment = { zone: number; minutes: number; share: number };
+
+/**
+ * Heart-rate zone bar for one workout: zones 1–5 only (zone 0 is below the
+ * training range), each as a share of the active minutes. Empty zones are dropped.
+ */
+export function zoneBar(zoneMinutes: number[]): { activeMinutes: number; segments: ZoneSegment[] } {
+  const active = zoneMinutes.slice(1, 6);
+  const activeMinutes = active.reduce((sum, m) => sum + m, 0);
+  if (activeMinutes === 0) return { activeMinutes: 0, segments: [] };
+  return {
+    activeMinutes,
+    segments: active
+      .map((minutes, i) => ({ zone: i + 1, minutes, share: minutes / activeMinutes }))
+      .filter((s) => s.minutes > 0),
+  };
+}

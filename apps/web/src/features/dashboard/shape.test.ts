@@ -162,3 +162,21 @@ describe("valueDomain", () => {
     expect(valueDomain([50], [0, 100])).toEqual([0, 100]);
   });
 });
+
+describe("zoneBar", () => {
+  test("gives each of zones 1–5 its share of the active minutes, ignoring zone 0", async () => {
+    const { zoneBar } = await import("./shape");
+    const bar = zoneBar([30, 10, 20, 10, 0, 0]);
+    expect(bar.activeMinutes).toBe(40);
+    expect(bar.segments.map((s) => [s.zone, s.minutes, s.share])).toEqual([
+      [1, 10, 0.25],
+      [2, 20, 0.5],
+      [3, 10, 0.25],
+    ]);
+  });
+
+  test("is empty when no time was spent in zones 1–5", async () => {
+    const { zoneBar } = await import("./shape");
+    expect(zoneBar([45, 0, 0, 0, 0, 0])).toEqual({ activeMinutes: 0, segments: [] });
+  });
+});

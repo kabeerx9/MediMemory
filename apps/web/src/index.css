@@ -22,6 +22,12 @@
   --wd-warning: #a87900;
   --wd-critical: #d1002a;
   --wd-marker: #8a949a;
+  /* Heart-rate zones 1–5: one hue, light→dark (validated, ordinal). */
+  --wd-z1: #86b6ef;
+  --wd-z2: #5598e7;
+  --wd-z3: #2a78d6;
+  --wd-z4: #1c5cab;
+  --wd-z5: #0d366b;
   background: var(--wd-bg);
   color: var(--wd-ink);
 }
@@ -40,4 +46,9 @@
   --wd-warning: #ffde00;
   --wd-critical: #ff2d48;
   --wd-marker: #6b767d;
+  --wd-z1: #184f95;
+  --wd-z2: #256abf;
+  --wd-z3: #3987e5;
+  --wd-z4: #6da7ec;
+  --wd-z5: #b7d3f6;
 }

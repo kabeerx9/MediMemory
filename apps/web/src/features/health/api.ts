@@ -171,6 +171,21 @@ export const healthApi = {
       "/api/v1/daily-metrics?" + new URLSearchParams({ workspaceId, from, to }).toString(),
     ),
 
+  getWhoopWorkouts: (workspaceId: string, from: string, to: string) =>
+    apiFetch<{
+      workouts: Array<{
+        id: string;
+        date: string;
+        start: string;
+        durationMinutes: number | null;
+        sport: string;
+        strain: number | null;
+        avgHr: number | null;
+        maxHr: number | null;
+        zoneMinutes: number[];
+      }>;
+    }>("/api/v1/whoop/workouts?" + new URLSearchParams({ workspaceId, from, to }).toString()),
+
   getWorkouts: (workspaceId: string, from: string, to: string) =>
     apiFetch<{ workouts: Array<{ local_date: string; day_number: number | null; note: string | null; status: string; details: string | null }> }>(
       "/api/v1/workouts?" + new URLSearchParams({ workspaceId, from, to }).toString(),

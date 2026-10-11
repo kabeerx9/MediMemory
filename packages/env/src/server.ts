@@ -46,6 +46,15 @@ const schema = z.object({
   // host with a real filesystem (VPS, local dev).
   FILES_DIR: z.string().min(1).optional(),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
+  // WHOOP integration. All three unset = the feature is off (routes answer
+  // 503, no scheduler). WHOOP_TOKEN_KEY is base64 of 32 random bytes and
+  // encrypts stored refresh tokens; losing it means reconnecting, nothing else.
+  WHOOP_CLIENT_ID: z.string().min(1).optional(),
+  WHOOP_CLIENT_SECRET: z.string().min(1).optional(),
+  WHOOP_TOKEN_KEY: z.string().min(1).optional(),
+  // Overridable so tests can point the client at a local fake.
+  WHOOP_API_BASE: z.url().default("https://api.prod.whoop.com"),
+  WHOOP_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(3 * 60 * 60 * 1000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 

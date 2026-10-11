@@ -166,6 +166,11 @@ export const healthApi = {
   disconnect: (clientId: string) =>
     apiFetch<{ ok: true }>("/api/v1/connections/" + encodeURIComponent(clientId), { method: "DELETE" }),
 
+  getDailyMetrics: (workspaceId: string, from: string, to: string) =>
+    apiFetch<{ from: string; to: string; days: Array<{ date: string; source: string } & Record<string, number | boolean | string>> }>(
+      "/api/v1/daily-metrics?" + new URLSearchParams({ workspaceId, from, to }).toString(),
+    ),
+
   getWhoop: (workspaceId: string) =>
     apiFetch<WhoopStatus>("/api/v1/whoop?workspaceId=" + encodeURIComponent(workspaceId)),
 

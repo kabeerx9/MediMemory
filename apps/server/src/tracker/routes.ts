@@ -79,7 +79,7 @@ function planOut(row: typeof workoutPlans.$inferSelect) {
     horizon_end: row.horizonEnd,
     history_fingerprint: row.historyFingerprint,
     payload_json: row.payloadJson,
-    created_at: row.createdAt.toISOString(),
+    created_at_utc: row.createdAtUtc,
   };
 }
 
@@ -272,7 +272,7 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
       .select()
       .from(workoutPlans)
       .where(and(eq(workoutPlans.workspaceId, workspaceId), lte(workoutPlans.localDate, asOf), gte(workoutPlans.horizonEnd, asOf)))
-      .orderBy(desc(workoutPlans.localDate), desc(workoutPlans.createdAt))
+      .orderBy(desc(workoutPlans.localDate), desc(workoutPlans.createdAtUtc))
       .limit(1);
     return { plan: row ? planOut(row) : null };
   });
@@ -308,7 +308,7 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
         horizonEnd: body.horizon_end,
         historyFingerprint: body.history_fingerprint,
         payloadJson: body.payload_json,
-        createdAt: stamp(body.at),
+        createdAtUtc: body.at ?? new Date().toISOString(),
       });
       return { result: "saved" };
     });

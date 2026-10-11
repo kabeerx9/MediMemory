@@ -78,7 +78,10 @@ export const workoutPlans = pgTable(
     horizonEnd: text("horizon_end").notNull(),
     historyFingerprint: text("history_fingerprint").notNull(),
     payloadJson: text("payload_json").notNull(),
-    createdAt: timestamp("created_at", tz).notNull(),
+    // The client's own UTC ISO string, kept verbatim: Python writes
+    // microseconds and a JS Date would truncate them to milliseconds,
+    // changing a value the client compares and orders by.
+    createdAtUtc: text("created_at_utc").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.planId] }),

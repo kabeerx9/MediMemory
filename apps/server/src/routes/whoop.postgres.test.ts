@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { db } from "@caretalk/db";
 import { user } from "@caretalk/db/schema/auth";
-import { dailyMetrics, deviceConnections } from "@caretalk/db/schema/devices";
+import { dailyMetrics, deviceConnections, whoopRecords } from "@caretalk/db/schema/devices";
 import { workspaces } from "@caretalk/db/schema/health";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -107,6 +107,35 @@ describeDb("WHOOP connect flow against Postgres", () => {
     currentUser = stranger;
     try {
       const response = await app.inject({ method: "GET", url: `/api/v1/daily-metrics?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
+      expect(response.statusCode).toBe(404);
+    } finally {
+      currentUser = owner;
+    }
+  });
+
+  it("lists the owner's WHOOP workouts with heart-rate zones", async () => {
+    const [connection] = await db.select().from(deviceConnections).where(eq(deviceConnections.workspaceId, workspaceId));
+    await db.insert(whoopRecords).values({
+      id: randomUUID(),
+      connectionId: connection!.id,
+      type: "workout",
+      whoopId: "w-zones",
+      startsAt: new Date("2026-10-11T03:00:00Z"),
+      scoreState: "SCORED",
+      payload: {
+        id: "w-zones", start: "2026-10-11T03:00:00Z", end: "2026-10-11T03:30:00Z", sport_name: "running", score_state: "SCORED",
+        score: { strain: 8, average_heart_rate: 140, max_heart_rate: 170, zone_durations: { zone_two_milli: 600_000, zone_three_milli: 1_200_000 } },
+      },
+    });
+    const response = await app.inject({ method: "GET", url: `/api/v1/whoop/workouts?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().workouts).toEqual([expect.objectContaining({ sport: "Running", avgHr: 140, zoneMinutes: [0, 0, 10, 20, 0, 0] })]);
+  });
+
+  it("won't list WHOOP workouts for someone else's workspace", async () => {
+    currentUser = stranger;
+    try {
+      const response = await app.inject({ method: "GET", url: `/api/v1/whoop/workouts?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
       expect(response.statusCode).toBe(404);
     } finally {
       currentUser = owner;

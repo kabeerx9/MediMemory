@@ -14,6 +14,7 @@ import { decryptToken, encryptToken } from "../whoop/crypto";
 import { whoopRepository } from "../whoop/repository";
 import { syncConnection, syncWorkspace } from "../whoop/sync";
 import { getDailyMetricsForCaller } from "../whoop/tools";
+import { listWorkoutsForCaller } from "../whoop/workouts";
 
 // WHOOP from the web app: start the OAuth flow, receive the callback, show
 // status, sync on demand, disconnect. The MCP tools cover reading the data.
@@ -105,6 +106,15 @@ export const whoopRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId, from, to } = workspaceQuery.extend({ from: z.string(), to: z.string() }).parse(request.query);
     return getDailyMetricsForCaller(userId, workspaceId, { from, to });
+  });
+
+  // Per-workout heart-rate detail (avg/max HR, minutes in zones 0–5) for the dashboard.
+  fastify.get("/api/v1/whoop/workouts", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId, from, to } = workspaceQuery
+      .extend({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+      .parse(request.query);
+    return { workouts: await listWorkoutsForCaller(userId, workspaceId, from, to) };
   });
 
   // Data already ingested stays: Caretalk is append-only by design.

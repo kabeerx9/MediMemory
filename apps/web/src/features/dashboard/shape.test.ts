@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { eventMarkers, glanceStat, measurementSeriesInRange, rangeFor, recoveryBand, rollingAverage } from "./shape";
+import { eventMarkers, glanceStat, measurementSeriesInRange, rangeFor, recoveryBand, niceTicks, rollingAverage, strainLevel } from "./shape";
 
 describe("rangeFor", () => {
   test("covers the last N days including today", () => {
@@ -88,6 +88,11 @@ describe("eventMarkers", () => {
 });
 
 describe("measurementSeriesInRange", () => {
+  test("drops a metric with fewer than two readings in range — one dot isn't a trend", () => {
+    const memories = [memory({ id: "1", kind: "measurement", metric: "weight", value: 82, unit: "kg", happenedOn: "2026-10-02" })];
+    expect(measurementSeriesInRange(memories as never, { from: "2026-10-01", to: "2026-10-11" })).toEqual([]);
+  });
+
   test("keeps active measurement readings within the range, grouped by metric", () => {
     const memories = [
       memory({ id: "1", kind: "measurement", metric: "weight", value: 82, unit: "kg", happenedOn: "2026-10-02" }),
@@ -97,5 +102,22 @@ describe("measurementSeriesInRange", () => {
     expect(measurementSeriesInRange(memories as never, { from: "2026-10-01", to: "2026-10-11" })).toEqual([
       { metric: "weight", unit: "kg", points: [{ date: "2026-10-02", value: 82 }, { date: "2026-10-09", value: 81 }] },
     ]);
+  });
+});
+
+describe("strainLevel", () => {
+  test("uses WHOOP's light / moderate / high / all-out bands", () => {
+    expect(strainLevel(9.9)).toBe("Light");
+    expect(strainLevel(10)).toBe("Moderate");
+    expect(strainLevel(14)).toBe("High");
+    expect(strainLevel(18)).toBe("All out");
+  });
+});
+
+describe("niceTicks", () => {
+  test("picks round values inside the domain", () => {
+    expect(niceTicks(0, 21)).toEqual([0, 10, 20]);
+    expect(niceTicks(2_900, 13_000)).toEqual([5_000, 7_500, 10_000, 12_500]);
+    expect(niceTicks(5.4, 8.6)).toEqual([6, 7, 8]);
   });
 });

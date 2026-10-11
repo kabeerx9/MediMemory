@@ -90,6 +90,34 @@ export function measurementSeriesInRange(memories: Memory[], range: DateRange): 
     byMetric.set(m.metric, series);
   }
   return [...byMetric.values()]
+    .filter((s) => s.points.length >= 2)
     .map((s) => ({ ...s, points: s.points.sort((a, b) => a.date.localeCompare(b.date)) }))
     .sort((a, b) => a.metric.localeCompare(b.metric));
+}
+
+/** WHOOP's day-strain bands on its 0–21 scale. */
+export function strainLevel(strain: number): "Light" | "Moderate" | "High" | "All out" {
+  if (strain >= 18) return "All out";
+  if (strain >= 14) return "High";
+  if (strain >= 10) return "Moderate";
+  return "Light";
+}
+
+/**
+ * Round axis values inside [min, max]: steps of 1, 2, 2.5 or 5 × 10ⁿ, picking
+ * the step whose tick count lands closest to `target` (ties go to more ticks).
+ */
+export function niceTicks(min: number, max: number, target = 3): number[] {
+  if (!(max > min)) return [min];
+  const magnitude = 10 ** Math.floor(Math.log10((max - min) / target));
+  let best: number[] = [];
+  for (const factor of [1, 2, 2.5, 5, 10]) {
+    const step = factor * magnitude;
+    const ticks: number[] = [];
+    for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) ticks.push(Number(t.toFixed(10)));
+    const better = Math.abs(ticks.length - target) < Math.abs(best.length - target);
+    const tieMore = Math.abs(ticks.length - target) === Math.abs(best.length - target) && ticks.length > best.length;
+    if (ticks.length >= 2 && (best.length === 0 || better || tieMore)) best = ticks;
+  }
+  return best.length ? best : [min, max];
 }

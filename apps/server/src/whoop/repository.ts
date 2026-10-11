@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { db } from "@caretalk/db";
-import { dailyMetrics, deviceConnections, whoopRecords } from "@caretalk/db/schema/devices";
-import { and, asc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { dailyMetrics, deviceConnections, whoopOauthStates, whoopRecords } from "@caretalk/db/schema/devices";
+import { and, asc, eq, gt, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 import { METRIC_KEYS, type DailyMetricValues, type RawRecord, type WhoopRecordType } from "./types";
 
@@ -141,6 +141,21 @@ export const whoopRepository = {
         }));
       if (rows.length > 0) await tx.insert(dailyMetrics).values(rows);
     });
+  },
+
+  async createOauthState(input: { state: string; userId: string; workspaceId: string; expiresAt: Date }) {
+    // Expired states are dead weight; sweep them whenever a new flow starts.
+    await db.delete(whoopOauthStates).where(lt(whoopOauthStates.expiresAt, new Date()));
+    await db.insert(whoopOauthStates).values(input);
+  },
+
+  /** Single use: the row is deleted as it's read, so a replayed callback finds nothing. */
+  async consumeOauthState(state: string): Promise<{ userId: string; workspaceId: string } | null> {
+    const [row] = await db
+      .delete(whoopOauthStates)
+      .where(and(eq(whoopOauthStates.state, state), gt(whoopOauthStates.expiresAt, new Date())))
+      .returning({ userId: whoopOauthStates.userId, workspaceId: whoopOauthStates.workspaceId });
+    return row ?? null;
   },
 
   async getDailyMetrics(workspaceId: string, from: string, to: string): Promise<DailyMetricRow[]> {

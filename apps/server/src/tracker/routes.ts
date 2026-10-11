@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { getRequiredUserId } from "../lib/auth";
 import { HttpError, notFound } from "../lib/http-error";
+import { healthRepository } from "../repositories/health-repository";
 import { getDailyMetricsForCaller } from "../whoop/tools";
 import { authenticateToken, createApiToken, listApiTokens, revokeApiToken } from "./tokens";
 
@@ -98,6 +99,19 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = z.object({ id: z.string().min(1).max(200) }).parse(request.params);
     await revokeApiToken(userId, id);
     return { ok: true };
+  });
+
+  // Read-only workout history for the dashboard (session auth, owner-checked).
+  fastify.get("/api/v1/workouts", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId, from, to } = z.object({ workspaceId: z.string().min(1).max(200), from: isoDate, to: isoDate }).parse(request.query);
+    await healthRepository.getWorkspace(userId, workspaceId);
+    const rows = await db
+      .select()
+      .from(workoutLogs)
+      .where(and(eq(workoutLogs.workspaceId, workspaceId), gte(workoutLogs.localDate, from), lte(workoutLogs.localDate, to)))
+      .orderBy(asc(workoutLogs.localDate));
+    return { workouts: rows.map(workoutOut) };
   });
 
   const caller = (request: FastifyRequest) => authenticateToken(request.headers.authorization);

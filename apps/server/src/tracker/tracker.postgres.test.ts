@@ -176,6 +176,19 @@ describeDb("tracker API against Postgres", () => {
     });
   });
 
+  describe("workouts for the dashboard (web, session auth)", () => {
+    it("lists the owner's workout logs for a range", async () => {
+      const response = await app.inject({ method: "GET", url: `/api/v1/workouts?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().workouts).toEqual([expect.objectContaining({ local_date: "2026-10-05", status: "done", details: "Push day" })]);
+    });
+
+    it("404s a workspace the user doesn't own", async () => {
+      const response = await app.inject({ method: "GET", url: `/api/v1/workouts?workspaceId=not-mine&from=2026-10-01&to=2026-10-31` });
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
   describe("token management (web, session auth)", () => {
     it("creates a token shown once, lists it without the secret, and revokes it", async () => {
       const created = await app.inject({ method: "POST", url: "/api/v1/api-tokens", payload: { workspaceId, name: "Hermes CLI" } });

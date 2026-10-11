@@ -102,6 +102,11 @@ describeDb("tracker API against Postgres", () => {
       expect(row).toMatchObject({ caloriesKcal: 1900, weightKg: 118.5, exercised: true, steps: null });
     });
 
+    it("says which field was out of range", async () => {
+      const response = await call("PUT", "/checkins/2026-10-04", checkin({ calories_kcal: 20000 }));
+      expect(response.json().error).toMatch(/calories_kcal/);
+    });
+
     it("rejects out-of-range values", async () => {
       expect((await call("PUT", "/checkins/2026-10-04", checkin({ calories_kcal: 20000 }))).statusCode).toBe(400);
       expect((await call("PUT", "/checkins/2026-10-04", checkin({ weight_tenths_kg: 50 }))).statusCode).toBe(400);
@@ -160,6 +165,13 @@ describeDb("tracker API against Postgres", () => {
       expect((await call("PUT", "/plans/p1", plan())).json()).toEqual({ result: "already_saved" });
       expect((await call("PUT", "/plans/p1", plan({ payload_json: '{"plan_id":"p1","x":2}' }))).statusCode).toBe(409);
       expect((await call("GET", "/plans/p1")).json()).toMatchObject({ plan_id: "p1", payload_json: '{"plan_id":"p1","x":1}' });
+    });
+
+    it("treats two simultaneous saves of the same plan as one", async () => {
+      const racePlan = plan({ local_date: "2026-11-01", horizon_end: "2026-11-05" });
+      const results = await Promise.all([call("PUT", "/plans/p-race", racePlan), call("PUT", "/plans/p-race", racePlan)]);
+      expect(results.map((r) => r.statusCode)).toEqual([200, 200]);
+      expect(results.map((r) => r.json().result).sort()).toEqual(["already_saved", "saved"]);
     });
 
     it("finds the plan in force on a date", async () => {

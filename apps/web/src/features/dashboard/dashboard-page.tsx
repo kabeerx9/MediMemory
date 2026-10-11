@@ -68,9 +68,10 @@ export function DashboardPage() {
   const loadMetrics = useCallback(
     async (workspaceId: string) => {
       // Six extra days so the first visible day already has a full 7-day average.
+      // Workouts are optional garnish: their failure must never blank the charts.
       const [response, workoutLog] = await Promise.all([
         healthApi.getDailyMetrics(workspaceId, addDays(range.from, -6), range.to),
-        healthApi.getWorkouts(workspaceId, range.from, range.to),
+        healthApi.getWorkouts(workspaceId, range.from, range.to).catch(() => ({ workouts: [] })),
       ]);
       setRows(response.days.filter((d) => d.source === "whoop") as DayRow[]);
       // Hermes check-ins: calories, weight, exercised — confirmed on Telegram each night.

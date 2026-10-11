@@ -8,5 +8,5 @@ const TOKEN = /^ct_[A-Za-z0-9_-]+$/;
 export function hermesConfigCommand(token: string): string {
   if (!TOKEN.test(token)) throw new Error("Not a Caretalk API token");
   const config = `{"base_url": "http://127.0.0.1:3000", "token": "${token}"}`;
-  return `ssh hermes-vps 'umask 077 && cat > ~/.hermes/data/health/caretalk.json' <<'EOF'\n${config}\nEOF`;
+  return `ssh hermes-vps 'umask 077 && cat > ~/.hermes/data/health/caretalk.json && chmod 600 ~/.hermes/data/health/caretalk.json' <<'EOF'\n${config}\nEOF`;
 }

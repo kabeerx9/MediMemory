@@ -41,7 +41,10 @@ export function buildApp() {
       return;
     }
     if (error instanceof ZodError) {
-      reply.status(400).send({ error: "Invalid request", code: "VALIDATION_ERROR", issues: error.issues });
+      // Name the first problem so a CLI client can say what to fix.
+      const first = error.issues[0];
+      const detail = first ? `${first.path.join(".") || "request"}: ${first.message}` : "";
+      reply.status(400).send({ error: detail ? `Invalid request — ${detail}` : "Invalid request", code: "VALIDATION_ERROR", issues: error.issues });
       return;
     }
     if (error && typeof error === "object" && "statusCode" in error) {

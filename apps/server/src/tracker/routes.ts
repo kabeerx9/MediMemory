@@ -306,16 +306,11 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
     const { workspaceId } = await caller(request);
     const { id } = z.object({ id: z.string().min(1).max(128) }).parse(request.params);
     const body = planBody.parse(request.body);
-    return db.transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ payloadJson: workoutPlans.payloadJson })
-        .from(workoutPlans)
-        .where(and(eq(workoutPlans.workspaceId, workspaceId), eq(workoutPlans.planId, id)));
-      if (existing) {
-        if (existing.payloadJson === body.payload_json) return { result: "already_saved" };
-        throw new HttpError(409, "plan_id already exists with different payload", "CONFLICT");
-      }
-      await tx.insert(workoutPlans).values({
+    // Insert-if-absent first, then compare: two simultaneous saves can't both
+    // pass a check-then-insert and collide on the primary key.
+    const inserted = await db
+      .insert(workoutPlans)
+      .values({
         workspaceId,
         planId: id,
         localDate: body.local_date,
@@ -323,8 +318,15 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
         historyFingerprint: body.history_fingerprint,
         payloadJson: body.payload_json,
         createdAtUtc: body.at ?? new Date().toISOString(),
-      });
-      return { result: "saved" };
-    });
+      })
+      .onConflictDoNothing()
+      .returning({ id: workoutPlans.planId });
+    if (inserted.length === 1) return { result: "saved" };
+    const [existing] = await db
+      .select({ payloadJson: workoutPlans.payloadJson })
+      .from(workoutPlans)
+      .where(and(eq(workoutPlans.workspaceId, workspaceId), eq(workoutPlans.planId, id)));
+    if (existing?.payloadJson === body.payload_json) return { result: "already_saved" };
+    throw new HttpError(409, "plan_id already exists with different payload", "CONFLICT");
   });
 };

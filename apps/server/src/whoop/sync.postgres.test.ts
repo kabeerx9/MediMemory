@@ -4,11 +4,12 @@ import { db } from "@caretalk/db";
 import { user } from "@caretalk/db/schema/auth";
 import { dailyMetrics, deviceConnections, whoopRecords } from "@caretalk/db/schema/devices";
 import { workspaces } from "@caretalk/db/schema/health";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { WhoopConfig } from "./config";
 import { decryptToken, encryptToken } from "./crypto";
+import { whoopRepository } from "./repository";
 import { lockKey, syncConnection } from "./sync";
 import { FakeWhoop } from "./testing/fake-whoop";
 
@@ -189,5 +190,80 @@ describeDb("WHOOP sync against Postgres", () => {
       .where(eq(deviceConnections.id, connectionId));
 
     expect((await syncConnection(connectionId, { cfg, now: NOW })).status).toBe("ok");
+  });
+
+  it("writes a backfill larger than Postgres' parameter limit", async () => {
+    const many = Array.from({ length: 8000 }, (_, i) => ({
+      type: "workout" as const,
+      whoopId: `bulk-${i}`,
+      payload: { id: `bulk-${i}` },
+      startsAt: new Date(NOW.getTime() - i * 3_600_000),
+      endsAt: null,
+      scoreState: "SCORED",
+    }));
+    await whoopRepository.upsertRecords(connectionId, many);
+    expect(await rowCount(whoopRecords)).toBe(8000);
+  });
+
+  it("keeps syncing when the body-measurement endpoint fails", async () => {
+    fake.failures.set("/developer/v2/user/measurement/body", [404]);
+    expect((await syncConnection(connectionId, { cfg, now: NOW })).status).toBe("ok");
+  });
+
+  it("stores a short error, never raw query text or health data", async () => {
+    fake.collections.set("/developer/v2/cycle", [
+      // An id Postgres can't store as text without breaking the insert: a NUL byte.
+      { id: "bad\u0000id", start: "2026-10-10T17:30:00Z", score_state: "SCORED", score: { strain: 1 }, secret_marker: "HEALTH-DATA" },
+    ]);
+    const result = await syncConnection(connectionId, { cfg, now: NOW });
+    expect(result.status).toBe("error");
+    const { lastError } = await connection();
+    expect(lastError).toBeTruthy();
+    expect(lastError).not.toContain("HEALTH-DATA");
+    expect(lastError).not.toContain("insert into");
+    expect(lastError!.length).toBeLessThan(200);
+  });
+
+  it("survives the database dropping the lock connection mid-sync", async () => {
+    fake.beforeServe = async (path) => {
+      if (path !== "/developer/v2/activity/workout") return;
+      fake.beforeServe = null;
+      await db.execute(
+        sql`select pg_terminate_backend(pid) from pg_locks where locktype = 'advisory' and pid <> pg_backend_pid()`,
+      );
+    };
+    await syncConnection(connectionId, { cfg, now: NOW });
+    // The process is still alive and the lock is free again.
+    expect((await syncConnection(connectionId, { cfg, now: NOW })).status).toBe("ok");
+  });
+
+  it("doesn't undo a disconnect that happens during a sync", async () => {
+    fake.beforeServe = async (path) => {
+      if (path !== "/developer/v2/recovery") return;
+      fake.beforeServe = null;
+      await whoopRepository.revoke(connectionId);
+      fake.failures.set("/developer/v2/activity/workout", [500, 500, 500]);
+    };
+    await syncConnection(connectionId, { cfg, now: NOW, retryDelayMs: 1 });
+    const after = await connection();
+    expect(after.status).toBe("revoked");
+    expect(after.refreshTokenEnc).toBeNull();
+    expect(after.accessTokenEnc).toBeNull();
+  });
+
+  it("doesn't overwrite tokens from a reconnect that happens during a sync", async () => {
+    // Force a refresh mid-sync: the cached access token is rejected.
+    await db
+      .update(deviceConnections)
+      .set({ accessTokenEnc: encryptToken("revoked-elsewhere", key), accessExpiresAt: new Date(NOW.getTime() + 3_600_000) })
+      .where(eq(deviceConnections.id, connectionId));
+    const reconnected = encryptToken("refresh-from-reconnect", key);
+    fake.beforeServe = async (path) => {
+      if (path !== "/oauth/oauth2/token") return;
+      fake.beforeServe = null;
+      await db.update(deviceConnections).set({ refreshTokenEnc: reconnected }).where(eq(deviceConnections.id, connectionId));
+    };
+    await syncConnection(connectionId, { cfg, now: NOW });
+    expect((await connection()).refreshTokenEnc).toBe(reconnected);
   });
 });

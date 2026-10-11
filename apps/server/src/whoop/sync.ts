@@ -5,7 +5,7 @@ import { db } from "@caretalk/db";
 import { notFound } from "../lib/http-error";
 import { resolveTimeZone } from "../lib/time";
 import { healthRepository } from "../repositories/health-repository";
-import { getJson, listAll, refreshTokens, WhoopAuthError, WhoopUnauthorizedError } from "./client";
+import { getJson, listAll, refreshTokens, WhoopApiError, WhoopAuthError, WhoopUnauthorizedError } from "./client";
 import { whoopConfig, type WhoopConfig } from "./config";
 import { decryptToken, encryptToken } from "./crypto";
 import { computeDailyMetrics, localDate } from "./metrics";
@@ -63,20 +63,39 @@ function toFetched(type: WhoopRecordType, payload: any): FetchedRecord {
 }
 
 class ReconnectRequired extends Error {}
+/** The connection was disconnected or reconnected while this run was working. */
+class ConnectionChanged extends Error {}
+
+type RunOptions = { retryDelayMs?: number };
+
+/**
+ * A short, safe description for last_error and logs. Drizzle's query errors
+ * embed every bound parameter — raw WHOOP health JSON, encrypted tokens — so
+ * the wrapped message must never be stored or returned.
+ */
+export function describeSyncError(error: unknown): string {
+  if (error instanceof WhoopApiError) return `WHOOP returned ${error.status}`;
+  const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : undefined;
+  if (cause && typeof cause.code === "string") return `Database error ${cause.code}`;
+  if (error instanceof Error && error.name === "DrizzleQueryError") return "Database error";
+  if (error instanceof TypeError) return "Network error reaching WHOOP";
+  return error instanceof Error ? error.name : "Unknown error";
+}
 
 async function freshAccessToken(cfg: WhoopConfig, connection: DeviceConnection, now: Date, force: boolean): Promise<string> {
   if (!force && connection.accessTokenEnc && connection.accessExpiresAt && connection.accessExpiresAt.getTime() > now.getTime() + ACCESS_TOKEN_SLACK_MS) {
     return decryptToken(connection.accessTokenEnc, cfg.key);
   }
-  if (!connection.refreshTokenEnc) throw new ReconnectRequired("No refresh token stored");
+  const expected = connection.refreshTokenEnc;
+  if (!expected) throw new ReconnectRequired("No refresh token stored");
   try {
-    const tokens = await refreshTokens(cfg, decryptToken(connection.refreshTokenEnc, cfg.key));
+    const tokens = await refreshTokens(cfg, decryptToken(expected, cfg.key));
     const saved = {
       refreshTokenEnc: encryptToken(tokens.refreshToken, cfg.key),
       accessTokenEnc: encryptToken(tokens.accessToken, cfg.key),
       accessExpiresAt: tokens.expiresAt,
     };
-    await whoopRepository.saveTokens(connection.id, saved);
+    if (!(await whoopRepository.saveTokens(connection.id, expected, saved))) throw new ConnectionChanged();
     Object.assign(connection, saved);
     return tokens.accessToken;
   } catch (error) {
@@ -85,32 +104,41 @@ async function freshAccessToken(cfg: WhoopConfig, connection: DeviceConnection, 
   }
 }
 
-async function fetchWindow(cfg: WhoopConfig, accessToken: string, start: Date | null): Promise<FetchedRecord[]> {
+async function fetchWindow(cfg: WhoopConfig, accessToken: string, start: Date | null, opts: RunOptions): Promise<FetchedRecord[]> {
   const params = start ? { start: start.toISOString() } : {};
   const records: FetchedRecord[] = [];
   for (const { type, path } of COLLECTIONS) {
-    for (const payload of await listAll(cfg, accessToken, path, params)) records.push(toFetched(type, payload));
+    for (const payload of await listAll(cfg, accessToken, path, params, opts)) records.push(toFetched(type, payload));
   }
-  records.push(toFetched("body", await getJson(cfg, accessToken, "/v2/user/measurement/body")));
+  // Body measurements are kept raw but feed no metric: a failure here must
+  // never block the data that matters. 401s still surface (token problem).
+  try {
+    records.push(toFetched("body", await getJson(cfg, accessToken, "/v2/user/measurement/body", opts)));
+  } catch (error) {
+    if (!(error instanceof WhoopApiError)) throw error;
+  }
   return records;
 }
 
-async function runLocked(cfg: WhoopConfig, connection: DeviceConnection, now: Date): Promise<SyncResult> {
+async function runLocked(cfg: WhoopConfig, connection: DeviceConnection, now: Date, opts: RunOptions): Promise<SyncResult> {
   const windowStart = connection.lastSyncedAt ? new Date(connection.lastSyncedAt.getTime() - OVERLAP_MS) : null;
 
   let fetched: FetchedRecord[];
   try {
     const token = await freshAccessToken(cfg, connection, now, false);
     try {
-      fetched = await fetchWindow(cfg, token, windowStart);
+      fetched = await fetchWindow(cfg, token, windowStart, opts);
     } catch (error) {
       if (!(error instanceof WhoopUnauthorizedError)) throw error;
-      fetched = await fetchWindow(cfg, await freshAccessToken(cfg, connection, now, true), windowStart);
+      fetched = await fetchWindow(cfg, await freshAccessToken(cfg, connection, now, true), windowStart, opts);
     }
   } catch (error) {
     if (error instanceof ReconnectRequired || error instanceof WhoopUnauthorizedError) {
-      await whoopRepository.markStatus(connection.id, "needs_reconnect", error.message);
-      return { status: "needs_reconnect", fetched: 0, datesRecomputed: 0, message: "WHOOP needs to be reconnected." };
+      // Only if nobody reconnected meanwhile — a fresh connection stays active.
+      if (await whoopRepository.markNeedsReconnect(connection.id, connection.refreshTokenEnc, "WHOOP rejected the stored credentials")) {
+        return { status: "needs_reconnect", fetched: 0, datesRecomputed: 0, message: "WHOOP needs to be reconnected." };
+      }
+      throw new ConnectionChanged();
     }
     throw error;
   }
@@ -130,12 +158,22 @@ async function runLocked(cfg: WhoopConfig, connection: DeviceConnection, now: Da
   return { status: "ok", fetched: fetched.length, datesRecomputed: [...days.keys()].filter((d) => d >= fromDate).length };
 }
 
-export async function syncConnection(connectionId: string, opts: { cfg?: WhoopConfig; now?: Date } = {}): Promise<SyncResult> {
+export async function syncConnection(
+  connectionId: string,
+  opts: { cfg?: WhoopConfig; now?: Date } & RunOptions = {},
+): Promise<SyncResult> {
   const cfg = opts.cfg ?? whoopConfig();
   if (!cfg) return { status: "error", fetched: 0, datesRecomputed: 0, message: "WHOOP isn't configured on this server." };
   const now = opts.now ?? new Date();
 
   const client = await db.$client.connect();
+  // A checked-out pg client has no error listener; without this, Postgres
+  // dropping the session mid-run (restart, terminate) is an uncaught 'error'
+  // event that kills the whole server. The session lock dies with it.
+  let clientError: Error | undefined;
+  client.on("error", (error) => {
+    clientError = error;
+  });
   const key = lockKey(connectionId);
   try {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [key]);
@@ -146,18 +184,22 @@ export async function syncConnection(connectionId: string, opts: { cfg?: WhoopCo
       if (connection.status !== "active") {
         return { status: "needs_reconnect", fetched: 0, datesRecomputed: 0, message: `WHOOP connection is ${connection.status}.` };
       }
-      return await runLocked(cfg, connection, now);
+      return await runLocked(cfg, connection, now, { retryDelayMs: opts.retryDelayMs });
     } catch (error) {
       if (error instanceof Error && "statusCode" in error) throw error;
-      const message = error instanceof Error ? error.message : String(error);
-      console.error("WHOOP sync failed", { connectionId, message });
-      await whoopRepository.markStatus(connectionId, "active", message).catch(() => {});
+      if (error instanceof ConnectionChanged) {
+        return { status: "busy", fetched: 0, datesRecomputed: 0, message: "The WHOOP connection changed during the sync." };
+      }
+      const message = describeSyncError(error);
+      const detail = error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
+      console.error("WHOOP sync failed", { connectionId, message, detail: detail.slice(0, 200) });
+      await whoopRepository.markError(connectionId, message).catch(() => {});
       return { status: "error", fetched: 0, datesRecomputed: 0, message: "WHOOP sync failed; it will retry on the next run." };
     } finally {
-      await client.query("select pg_advisory_unlock($1)", [key]);
+      if (!clientError) await client.query("select pg_advisory_unlock($1)", [key]).catch((error: Error) => (clientError = error));
     }
   } finally {
-    client.release();
+    client.release(clientError);
   }
 }
 

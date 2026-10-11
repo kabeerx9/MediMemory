@@ -15,6 +15,44 @@ export type DailyMetricRow = typeof dailyMetrics.$inferSelect;
 
 export type FetchedRecord = RawRecord & { startsAt: Date | null; endsAt: Date | null; scoreState: string | null };
 
+const UPSERT_CHUNK = 500;
+
+function currentConnection(id: string, expectedRefreshEnc: string | null) {
+  return and(
+    eq(deviceConnections.id, id),
+    eq(deviceConnections.status, "active"),
+    expectedRefreshEnc === null ? isNull(deviceConnections.refreshTokenEnc) : eq(deviceConnections.refreshTokenEnc, expectedRefreshEnc),
+  );
+}
+
+async function upsertChunk(connectionId: string, records: FetchedRecord[], fetchedAt: Date) {
+  await db
+    .insert(whoopRecords)
+    .values(
+      records.map((record) => ({
+        id: randomUUID(),
+        connectionId,
+        type: record.type,
+        whoopId: record.whoopId,
+        startsAt: record.startsAt,
+        endsAt: record.endsAt,
+        scoreState: record.scoreState,
+        payload: record.payload,
+        fetchedAt,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [whoopRecords.connectionId, whoopRecords.type, whoopRecords.whoopId],
+      set: {
+        startsAt: sql`excluded.starts_at`,
+        endsAt: sql`excluded.ends_at`,
+        scoreState: sql`excluded.score_state`,
+        payload: sql`excluded.payload`,
+        fetchedAt: sql`excluded.fetched_at`,
+      },
+    });
+}
+
 export const whoopRepository = {
   async getConnection(id: string): Promise<DeviceConnection | null> {
     const [row] = await db.select().from(deviceConnections).where(eq(deviceConnections.id, id));
@@ -54,16 +92,47 @@ export const whoopRepository = {
     return row!;
   },
 
-  async saveTokens(id: string, tokens: { refreshTokenEnc: string; accessTokenEnc: string; accessExpiresAt: Date }) {
-    await db.update(deviceConnections).set(tokens).where(eq(deviceConnections.id, id));
+  // The writes a sync makes are conditional on the connection still being the
+  // one it started with: active, holding the refresh token it read. A
+  // disconnect or reconnect that lands mid-sync (neither takes the sync lock)
+  // then wins, instead of being overwritten by a run working from stale state.
+  // Each returns whether the row was still current.
+
+  async saveTokens(
+    id: string,
+    expectedRefreshEnc: string,
+    tokens: { refreshTokenEnc: string; accessTokenEnc: string; accessExpiresAt: Date },
+  ): Promise<boolean> {
+    const rows = await db
+      .update(deviceConnections)
+      .set(tokens)
+      .where(currentConnection(id, expectedRefreshEnc))
+      .returning({ id: deviceConnections.id });
+    return rows.length > 0;
   },
 
-  async markStatus(id: string, status: "active" | "needs_reconnect" | "revoked", lastError: string | null) {
-    await db.update(deviceConnections).set({ status, lastError }).where(eq(deviceConnections.id, id));
+  async markNeedsReconnect(id: string, expectedRefreshEnc: string | null, lastError: string): Promise<boolean> {
+    const rows = await db
+      .update(deviceConnections)
+      .set({ status: "needs_reconnect", lastError })
+      .where(currentConnection(id, expectedRefreshEnc))
+      .returning({ id: deviceConnections.id });
+    return rows.length > 0;
+  },
+
+  /** Records a failed run without touching status: the connection itself is fine. */
+  async markError(id: string, lastError: string) {
+    await db
+      .update(deviceConnections)
+      .set({ lastError })
+      .where(and(eq(deviceConnections.id, id), eq(deviceConnections.status, "active")));
   },
 
   async markSynced(id: string, at: Date) {
-    await db.update(deviceConnections).set({ lastSyncedAt: at, lastError: null }).where(eq(deviceConnections.id, id));
+    await db
+      .update(deviceConnections)
+      .set({ lastSyncedAt: at, lastError: null })
+      .where(and(eq(deviceConnections.id, id), eq(deviceConnections.status, "active")));
   },
 
   async revoke(id: string) {
@@ -74,33 +143,12 @@ export const whoopRepository = {
   },
 
   async upsertRecords(connectionId: string, records: FetchedRecord[]) {
-    if (records.length === 0) return;
     const fetchedAt = new Date();
-    await db
-      .insert(whoopRecords)
-      .values(
-        records.map((record) => ({
-          id: randomUUID(),
-          connectionId,
-          type: record.type,
-          whoopId: record.whoopId,
-          startsAt: record.startsAt,
-          endsAt: record.endsAt,
-          scoreState: record.scoreState,
-          payload: record.payload,
-          fetchedAt,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [whoopRecords.connectionId, whoopRecords.type, whoopRecords.whoopId],
-        set: {
-          startsAt: sql`excluded.starts_at`,
-          endsAt: sql`excluded.ends_at`,
-          scoreState: sql`excluded.score_state`,
-          payload: sql`excluded.payload`,
-          fetchedAt: sql`excluded.fetched_at`,
-        },
-      });
+    // Chunked: one statement may bind at most 65,535 parameters (9 per row),
+    // and a multi-year first backfill is well past that.
+    for (let i = 0; i < records.length; i += UPSERT_CHUNK) {
+      await upsertChunk(connectionId, records.slice(i, i + UPSERT_CHUNK), fetchedAt);
+    }
   },
 
   /** Records starting at or after `since` (all when null), plus undated ones (body). */

@@ -20,6 +20,8 @@ export class FakeWhoop {
   validRefreshToken = "refresh-0";
   validAccessToken = "access-0";
   revoked = false;
+  /** Awaited before each request is served — lets a test act mid-sync. */
+  beforeServe: ((path: string) => Promise<void>) | null = null;
   private tokenGeneration = 0;
   private server: Server | null = null;
 
@@ -69,6 +71,7 @@ export class FakeWhoop {
       auth: req.headers.authorization ?? null,
     };
     this.requests.push(request);
+    if (this.beforeServe) await this.beforeServe(url.pathname);
 
     const queued = this.failures.get(url.pathname);
     if (queued && queued.length > 0) return { status: queued.shift()!, json: { error: "injected" } };

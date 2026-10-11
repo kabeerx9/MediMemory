@@ -477,3 +477,26 @@ export const workspaceDetailSchema = z.object({
   sources: z.array(sourceSchema.omit({ content: true })),
 });
 export type WorkspaceDetail = z.infer<typeof workspaceDetailSchema>;
+
+// WHOOP connection state for the connections page. `configured` is false when
+// the server has no WHOOP credentials — the card says so instead of offering
+// a Connect button that can't work.
+export const whoopStatusSchema = z.object({
+  configured: z.boolean(),
+  connection: z
+    .object({
+      status: z.enum(["active", "needs_reconnect", "revoked"]),
+      lastSyncedAt: z.string().nullable(),
+      lastError: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type WhoopStatus = z.infer<typeof whoopStatusSchema>;
+
+export const whoopSyncResultSchema = z.object({
+  status: z.enum(["ok", "busy", "needs_reconnect", "error"]),
+  fetched: z.number(),
+  datesRecomputed: z.number(),
+  message: z.string().optional(),
+});
+export type WhoopSyncResult = z.infer<typeof whoopSyncResultSchema>;

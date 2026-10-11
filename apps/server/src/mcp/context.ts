@@ -15,8 +15,10 @@ export function buildMcpContext(input: {
   today: string;
   timeZone: string;
   reportsMissingOriginals: Array<{ id: string; title: string | null }>;
+  // Wearable trend block (WHOOP); null/absent when the workspace has no device.
+  dailySummary?: string[] | null;
 }) {
-  const { workspace, activeMemories, today, timeZone, reportsMissingOriginals } = input;
+  const { workspace, activeMemories, today, timeZone, reportsMissingOriginals, dailySummary } = input;
 
   const header = [
     `# Caretalk memory — ${workspace.name} (workspaceId: ${workspace.id})`,
@@ -49,6 +51,7 @@ export function buildMcpContext(input: {
     ...reportRules,
     "",
     ...buildProfileBlock(workspace),
+    ...(dailySummary ? ["", ...dailySummary] : []),
     "",
     ...buildMemoryBlock(activeMemories),
     ...(pending.length > 0 ? ["", ...pending] : []),

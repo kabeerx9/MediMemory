@@ -14,6 +14,8 @@ import { connectionsRepository } from "../repositories/connections-repository";
 import { healthRepository } from "../repositories/health-repository";
 import { reportsRepository } from "../repositories/reports-repository";
 import { reportsService } from "../services/reports-service";
+import { syncWorkspace } from "../whoop/sync";
+import { DAILY_METRIC_FIELDS, dailySummaryForWorkspace, getDailyMetricsForCaller } from "../whoop/tools";
 import { buildMcpContext } from "./context";
 
 // The MCP face of Caretalk. Claude/ChatGPT become the model; Caretalk stays
@@ -34,6 +36,7 @@ const INSTRUCTIONS = [
   "Workflow: when the user talks about their own or a family member's health, call list_workspaces, pick the matching workspace (ask if unclear), and call get_workspace_context BEFORE answering. Answer from that memory.",
   "Then save every new durable fact the user tells you or that you read from a document, following the rules returned by get_workspace_context. Never save their questions, worries, or your explanations.",
   "For a shared report/photo/PDF: register_report first, save its facts with that reportId, and give the user the upload link for the original.",
+  "Wearable data (WHOOP recovery, HRV, sleep, strain) is separate from saved facts: get_workspace_context shows a 7-day summary when a device is connected; call get_daily_metrics for day-by-day values. Never save wearable numbers with save_memory.",
 ].join("\n\n");
 
 const workspaceIdSchema = z.string().min(1).describe("The workspace id, from list_workspaces.");
@@ -112,16 +115,16 @@ export function buildMcpServer(caller: McpCaller) {
     ({ workspaceId }) =>
       guarded(async () => {
         const workspace = await healthRepository.getWorkspace(userId, workspaceId);
-        const [activeMemories, reportsMissingOriginals] = await Promise.all([
-          healthRepository.listActiveMemories(workspaceId),
-          reportsService.fileStorageEnabled ? reportsRepository.listReportsMissingOriginals(workspaceId) : [],
-        ]);
         // No per-request zone from an external app: the deployment's zone is
         // the user's (single-user instance), which beats the server's UTC.
         const timeZone = resolveTimeZone(null);
-        return text(
-          buildMcpContext({ workspace, activeMemories, today: todayIn(timeZone), timeZone, reportsMissingOriginals }),
-        );
+        const today = todayIn(timeZone);
+        const [activeMemories, reportsMissingOriginals, dailySummary] = await Promise.all([
+          healthRepository.listActiveMemories(workspaceId),
+          reportsService.fileStorageEnabled ? reportsRepository.listReportsMissingOriginals(workspaceId) : [],
+          dailySummaryForWorkspace(workspaceId, today),
+        ]);
+        return text(buildMcpContext({ workspace, activeMemories, today, timeZone, reportsMissingOriginals, dailySummary }));
       }),
   );
 
@@ -257,6 +260,35 @@ export function buildMcpServer(caller: McpCaller) {
         const workspace = await healthRepository.createWorkspace(userId, { name, description: description ?? null });
         return json({ workspace: { id: workspace.id, name: workspace.name } });
       }),
+  );
+
+  server.registerTool(
+    "get_daily_metrics",
+    {
+      title: "Read daily wearable metrics",
+      description:
+        "Day-by-day wearable data (WHOOP) for a workspace: recovery %, HRV (ms), resting HR, SpO2, skin temp, sleep minutes/performance/efficiency, respiratory rate, day strain, kJ, heart rate, steps, workouts. One row per local date and source; missing values are omitted. Use for trends and for linking body data to dated facts (medication changes, symptoms). Max 366 days per call.",
+      inputSchema: z.object({
+        workspaceId: workspaceIdSchema,
+        from: z.string().describe("First date, YYYY-MM-DD (inclusive)."),
+        to: z.string().describe("Last date, YYYY-MM-DD (inclusive)."),
+        metrics: z.array(z.enum(DAILY_METRIC_FIELDS)).optional().describe("Only these fields; omit for all."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    ({ workspaceId, ...input }) => guarded(async () => json(await getDailyMetricsForCaller(userId, workspaceId, input))),
+  );
+
+  server.registerTool(
+    "sync_daily_metrics",
+    {
+      title: "Sync wearable data now",
+      description:
+        "Pull the latest data from the workspace's connected WHOOP right away instead of waiting for the scheduled sync (every 3 hours). Use when the user says today's numbers are missing or stale.",
+      inputSchema: z.object({ workspaceId: workspaceIdSchema }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    ({ workspaceId }) => guarded(async () => json(await syncWorkspace(userId, workspaceId))),
   );
 
   return server;

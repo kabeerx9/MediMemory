@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { db } from "@caretalk/db";
 import { user } from "@caretalk/db/schema/auth";
-import { deviceConnections } from "@caretalk/db/schema/devices";
+import { dailyMetrics, deviceConnections } from "@caretalk/db/schema/devices";
 import { workspaces } from "@caretalk/db/schema/health";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -94,5 +94,22 @@ describeDb("WHOOP connect flow against Postgres", () => {
     expect(row?.status).toBe("revoked");
     expect(row?.refreshTokenEnc).toBeNull();
     expect(fake.revoked).toBe(true);
+  });
+
+  it("serves the owner's daily metrics for a date range", async () => {
+    await db.insert(dailyMetrics).values({ id: randomUUID(), workspaceId, date: "2026-10-11", source: "whoop", strain: 12.3 });
+    const response = await app.inject({ method: "GET", url: `/api/v1/daily-metrics?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().days).toEqual([{ date: "2026-10-11", source: "whoop", strain: 12.3 }]);
+  });
+
+  it("won't serve daily metrics for someone else's workspace", async () => {
+    currentUser = stranger;
+    try {
+      const response = await app.inject({ method: "GET", url: `/api/v1/daily-metrics?workspaceId=${workspaceId}&from=2026-10-01&to=2026-10-31` });
+      expect(response.statusCode).toBe(404);
+    } finally {
+      currentUser = owner;
+    }
   });
 });

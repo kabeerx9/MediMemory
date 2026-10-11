@@ -2,3 +2,42 @@
 @import "streamdown/styles.css";
 
 @source "../node_modules/streamdown/dist/**/*.js";
+
+/* —— Personal dashboard: WHOOP-inspired tokens ——
+   Series and status hues validated with the dataviz palette checker against
+   each mode's chart surface (strain blue / sleep plum, all-pairs). Recovery
+   bands are status colours and always ship with a text label. */
+.whoop-dash {
+  --wd-bg: #f3f4f5;
+  --wd-card: #ffffff;
+  --wd-ink: #0f1214;
+  --wd-muted: #5b656c;
+  --wd-faint: #8a949a;
+  --wd-grid: #e4e7e9;
+  --wd-track: #e8ebed;
+  --wd-strain: #2a78d6;
+  --wd-sleep: #a23aa6;
+  --wd-neutral: #39434a;
+  --wd-good: #0d8a2b;
+  --wd-warning: #a87900;
+  --wd-critical: #d1002a;
+  --wd-marker: #8a949a;
+  background: var(--wd-bg);
+  color: var(--wd-ink);
+}
+.dark .whoop-dash {
+  --wd-bg: #0a0c0e;
+  --wd-card: #121619;
+  --wd-ink: #f2f4f5;
+  --wd-muted: #8b969d;
+  --wd-faint: #5d686f;
+  --wd-grid: #20272c;
+  --wd-track: #1d2429;
+  --wd-strain: #3987e5;
+  --wd-sleep: #c05bc8;
+  --wd-neutral: #c9d0d4;
+  --wd-good: #16ec06;
+  --wd-warning: #ffde00;
+  --wd-critical: #ff2d48;
+  --wd-marker: #6b767d;
+}

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, Plug } from "lucide-react";
+import { Activity, Gauge, Plug } from "lucide-react";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -16,6 +16,15 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <Link
+            aria-label="My dashboard"
+            activeProps={{ className: "bg-[var(--surface-hover)] text-foreground" }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors hover:bg-[var(--surface-hover)] hover:text-foreground"
+            to="/dashboard"
+          >
+            <Gauge className="size-4" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
           <Link
             aria-label="Connected apps"
             activeProps={{ className: "bg-[var(--surface-hover)] text-foreground" }}

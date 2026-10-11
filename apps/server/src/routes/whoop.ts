@@ -13,6 +13,7 @@ import { whoopConfig } from "../whoop/config";
 import { decryptToken, encryptToken } from "../whoop/crypto";
 import { whoopRepository } from "../whoop/repository";
 import { syncConnection, syncWorkspace } from "../whoop/sync";
+import { getDailyMetricsForCaller } from "../whoop/tools";
 
 // WHOOP from the web app: start the OAuth flow, receive the callback, show
 // status, sync on demand, disconnect. The MCP tools cover reading the data.
@@ -96,6 +97,14 @@ export const whoopRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = await getRequiredUserId(request);
     const { workspaceId } = workspaceQuery.parse(request.body);
     return whoopSyncResultSchema.parse(await syncWorkspace(userId, workspaceId));
+  });
+
+  // Read-only, for the dashboard. Same owner check and range rules as the
+  // get_daily_metrics MCP tool — one function serves both.
+  fastify.get("/api/v1/daily-metrics", async (request) => {
+    const userId = await getRequiredUserId(request);
+    const { workspaceId, from, to } = workspaceQuery.extend({ from: z.string(), to: z.string() }).parse(request.query);
+    return getDailyMetricsForCaller(userId, workspaceId, { from, to });
   });
 
   // Data already ingested stays: Caretalk is append-only by design.

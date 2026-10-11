@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { getRequiredUserId } from "../lib/auth";
 import { HttpError, notFound } from "../lib/http-error";
+import { getDailyMetricsForCaller } from "../whoop/tools";
 import { authenticateToken, createApiToken, listApiTokens, revokeApiToken } from "./tokens";
 
 // The Hermes health tracker's storage, over HTTP. Mirrors the SQLite store it
@@ -253,6 +254,15 @@ export const trackerRoutes: FastifyPluginAsync = async (fastify) => {
       .orderBy(query.order === "asc" ? asc(workoutLogs.localDate) : desc(workoutLogs.localDate))
       .limit(query.limit);
     return { workouts: rows.map(workoutOut) };
+  });
+
+  // Read-only daily metrics (e.g. WHOOP steps for Hermes's weekly report).
+  // Same function as the get_daily_metrics MCP tool, scoped by the token.
+  fastify.get("/api/tracker/v1/daily-metrics", async (request) => {
+    const { userId, workspaceId } = await caller(request);
+    const { from, to, source } = z.object({ from: isoDate, to: isoDate, source: z.string().max(40).optional() }).parse(request.query);
+    const result = await getDailyMetricsForCaller(userId, workspaceId, { from, to });
+    return { ...result, days: source ? result.days.filter((d) => d.source === source) : result.days };
   });
 
   fastify.get("/api/tracker/v1/plans/active", async (request) => {

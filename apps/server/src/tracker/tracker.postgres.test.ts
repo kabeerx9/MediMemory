@@ -168,6 +168,14 @@ describeDb("tracker API against Postgres", () => {
     });
   });
 
+  describe("daily metrics for reports", () => {
+    it("returns the token workspace's WHOOP rows for a range", async () => {
+      await db.insert(dailyMetrics).values({ id: randomUUID(), workspaceId, date: "2026-10-07", source: "whoop", steps: 9120, strain: 11 });
+      const body = (await call("GET", "/daily-metrics?from=2026-10-01&to=2026-10-31&source=whoop")).json();
+      expect(body.days).toEqual([expect.objectContaining({ date: "2026-10-07", source: "whoop", steps: 9120 })]);
+    });
+  });
+
   describe("token management (web, session auth)", () => {
     it("creates a token shown once, lists it without the secret, and revokes it", async () => {
       const created = await app.inject({ method: "POST", url: "/api/v1/api-tokens", payload: { workspaceId, name: "Hermes CLI" } });

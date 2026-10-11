@@ -58,6 +58,8 @@ export function DashboardPage() {
   const [status, setStatus] = useState<WhoopStatus | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [rows, setRows] = useState<DayRow[] | null>(null);
+  const [hermesRows, setHermesRows] = useState<DayRow[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [showTable, setShowTable] = useState(false);
 
@@ -66,8 +68,15 @@ export function DashboardPage() {
   const loadMetrics = useCallback(
     async (workspaceId: string) => {
       // Six extra days so the first visible day already has a full 7-day average.
-      const response = await healthApi.getDailyMetrics(workspaceId, addDays(range.from, -6), range.to);
+      // Workouts are optional garnish: their failure must never blank the charts.
+      const [response, workoutLog] = await Promise.all([
+        healthApi.getDailyMetrics(workspaceId, addDays(range.from, -6), range.to),
+        healthApi.getWorkouts(workspaceId, range.from, range.to).catch(() => ({ workouts: [] })),
+      ]);
       setRows(response.days.filter((d) => d.source === "whoop") as DayRow[]);
+      // Hermes check-ins: calories, weight, exercised — confirmed on Telegram each night.
+      setHermesRows(response.days.filter((d) => d.source === "hermes") as DayRow[]);
+      setWorkouts(workoutLog.workouts);
     },
     [range],
   );
@@ -152,7 +161,7 @@ export function DashboardPage() {
                 </Link>
               </p>
             ) : null}
-            <Glance rows={rows ?? []} today={today} />
+            <Glance hermesRows={hermesRows} rows={rows ?? []} today={today} />
             <section className="flex flex-col gap-4" aria-labelledby="trends">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-[11px] font-semibold tracking-[0.18em] text-[var(--wd-muted)] uppercase" id="trends">
@@ -177,6 +186,7 @@ export function DashboardPage() {
               </div>
               <Legend hasMarkers={markers.length > 0} />
               <Charts markers={markers} range={range} rows={rows ?? []} />
+              <HermesCharts markers={markers} range={range} rows={hermesRows} />
             </section>
 
             {measurements.length > 0 ? (
@@ -202,6 +212,8 @@ export function DashboardPage() {
                 </div>
               </section>
             ) : null}
+
+            {workouts.length > 0 ? <Workouts workouts={workouts} /> : null}
 
             {markers.length > 0 ? <Timeline markers={markers} /> : null}
 
@@ -239,7 +251,9 @@ function NotConnected() {
   );
 }
 
-function Glance({ rows, today }: { rows: DayRow[]; today: string }) {
+type Workout = Awaited<ReturnType<typeof healthApi.getWorkouts>>["workouts"][number];
+
+function Glance({ rows, hermesRows, today }: { rows: DayRow[]; hermesRows: DayRow[]; today: string }) {
   const recovery = glanceStat(rows, "recoveryScore");
   const strain = glanceStat(rows, "strain");
   const sleepPerf = glanceStat(rows, "sleepPerformancePct");
@@ -272,11 +286,13 @@ function Glance({ rows, today }: { rows: DayRow[]; today: string }) {
           value={sleepPerf ? `${Math.round(sleepPerf.value)}%` : "—"}
         />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         <StatTile format={fmt.int} label="HRV" stat={glanceStat(rows, "hrvMs")} unit="ms" />
         <StatTile format={fmt.int} label="Resting HR" stat={glanceStat(rows, "restingHr")} unit="bpm" />
         <StatTile format={fmt.hours} label="Sleep" stat={sleepMin} unit="h" />
         <StatTile format={fmt.int} label="Steps" stat={glanceStat(rows, "steps")} />
+        <StatTile format={fmt.int} label="Calories" stat={glanceStat(hermesRows, "caloriesKcal")} unit="kcal" />
+        <StatTile format={fmt.one} label="Weight" stat={glanceStat(hermesRows, "weightKg")} unit="kg" />
       </div>
     </section>
   );
@@ -377,6 +393,55 @@ function Charts({ rows, range, markers }: { rows: DayRow[]; range: { from: strin
         );
       })}
     </div>
+  );
+}
+
+function HermesCharts({ rows, range, markers }: { rows: DayRow[]; range: { from: string; to: string }; markers: ReturnType<typeof eventMarkers> }) {
+  const calories = pointsFor(rows, "caloriesKcal");
+  const weight = pointsFor(rows, "weightKg");
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <MetricChart average={rollingAverage(calories, 7)} color="var(--wd-neutral)" daily={calories} format={fmt.int} markers={markers} range={range} title="Calories" unit="kcal" />
+      <MetricChart average={rollingAverage(weight, 7)} color="var(--wd-neutral)" daily={weight} format={fmt.one} markers={markers} range={range} title="Weight" unit="kg" />
+    </div>
+  );
+}
+
+const WORKOUTS_SHOWN = 8;
+
+function Workouts({ workouts }: { workouts: Workout[] }) {
+  const [all, setAll] = useState(false);
+  const sorted = [...workouts].sort((a, b) => b.local_date.localeCompare(a.local_date));
+  const ordered = all ? sorted : sorted.slice(0, WORKOUTS_SHOWN);
+  return (
+    <section className="flex flex-col gap-3" aria-labelledby="workouts">
+      <h2 className="text-[11px] font-semibold tracking-[0.18em] text-[var(--wd-muted)] uppercase" id="workouts">
+        Workouts
+      </h2>
+      <ol className="divide-y divide-[var(--wd-grid)] rounded-2xl bg-[var(--wd-card)]">
+        {ordered.map((w) => (
+          <li className="flex gap-4 px-4 py-3 text-sm" key={w.local_date}>
+            <span className="w-14 shrink-0 text-xs text-[var(--wd-muted)] tabular-nums">{shortDate(w.local_date)}</span>
+            <span className="min-w-0">
+              <span className="mr-1.5 text-[11px] font-semibold tracking-[0.1em] text-[var(--wd-muted)] uppercase">
+                {w.status === "done" ? "Done" : w.status === "skipped" ? "Skipped" : "Unconfirmed"}
+                {w.day_number ? ` · Day ${w.day_number}` : ""}
+              </span>
+              {w.details ?? w.note ?? ""}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {sorted.length > WORKOUTS_SHOWN ? (
+        <button
+          className="self-start text-xs font-semibold tracking-wide text-[var(--wd-muted)] uppercase hover:text-[var(--wd-ink)]"
+          onClick={() => setAll((v) => !v)}
+          type="button"
+        >
+          {all ? "Show fewer" : `Show all ${sorted.length}`}
+        </button>
+      ) : null}
+    </section>
   );
 }
 

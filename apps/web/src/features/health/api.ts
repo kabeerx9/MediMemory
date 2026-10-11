@@ -171,6 +171,21 @@ export const healthApi = {
       "/api/v1/daily-metrics?" + new URLSearchParams({ workspaceId, from, to }).toString(),
     ),
 
+  getWorkouts: (workspaceId: string, from: string, to: string) =>
+    apiFetch<{ workouts: Array<{ local_date: string; day_number: number | null; note: string | null; status: string; details: string | null }> }>(
+      "/api/v1/workouts?" + new URLSearchParams({ workspaceId, from, to }).toString(),
+    ),
+
+  listApiTokens: () =>
+    apiFetch<{ tokens: Array<{ id: string; name: string; workspaceId: string; createdAt: string; lastUsedAt: string | null }> }>(
+      "/api/v1/api-tokens",
+    ),
+
+  createApiToken: (workspaceId: string, name: string) =>
+    apiFetch<{ id: string; token: string }>("/api/v1/api-tokens", { method: "POST", body: JSON.stringify({ workspaceId, name }) }),
+
+  revokeApiToken: (id: string) => apiFetch<{ ok: true }>("/api/v1/api-tokens/" + encodeURIComponent(id), { method: "DELETE" }),
+
   getWhoop: (workspaceId: string) =>
     apiFetch<WhoopStatus>("/api/v1/whoop?workspaceId=" + encodeURIComponent(workspaceId)),
 

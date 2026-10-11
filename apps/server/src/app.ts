@@ -11,6 +11,7 @@ import { connectionRoutes } from "./routes/connections";
 import { mcpRoutes } from "./routes/mcp";
 import { reportRoutes } from "./routes/reports";
 import { whoopRoutes } from "./routes/whoop";
+import { trackerRoutes } from "./tracker/routes";
 
 // App assembly without listen(): the local entrypoint (index.ts) listens on a
 // port; the Vercel entrypoint (api/index.ts) feeds requests in via the node
@@ -40,7 +41,10 @@ export function buildApp() {
       return;
     }
     if (error instanceof ZodError) {
-      reply.status(400).send({ error: "Invalid request", code: "VALIDATION_ERROR", issues: error.issues });
+      // Name the first problem so a CLI client can say what to fix.
+      const first = error.issues[0];
+      const detail = first ? `${first.path.join(".") || "request"}: ${first.message}` : "";
+      reply.status(400).send({ error: detail ? `Invalid request — ${detail}` : "Invalid request", code: "VALIDATION_ERROR", issues: error.issues });
       return;
     }
     if (error && typeof error === "object" && "statusCode" in error) {
@@ -65,6 +69,7 @@ export function buildApp() {
   fastify.register(reportRoutes);
   fastify.register(connectionRoutes);
   fastify.register(whoopRoutes);
+  fastify.register(trackerRoutes);
 
   // OAuth token, revocation, and (optionally) authorize requests are
   // form-encoded. Keep the raw string: better-auth parses it itself, and

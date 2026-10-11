@@ -11,7 +11,10 @@
   },
   "scripts": {},
   "dependencies": {
+    "@better-auth/cimd": "1.7.7",
     "@better-auth/expo": "catalog:",
+    "@better-auth/mcp": "1.7.7",
+    "@better-auth/utils": "0.4.2",
     "@caretalk/db": "workspace:*",
     "@caretalk/env": "workspace:*",
     "better-auth": "catalog:",

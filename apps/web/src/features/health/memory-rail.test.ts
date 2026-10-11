@@ -84,6 +84,7 @@ describe("MemoryRail", () => {
       createElement(MemoryRail, {
         workspace,
         memories,
+        sources: [],
         onWorkspaceUpdated: () => undefined,
         onMemoriesChanged: () => undefined,
       }),

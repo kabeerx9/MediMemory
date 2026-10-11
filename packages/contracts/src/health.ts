@@ -9,7 +9,10 @@ export const isoDateSchema = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
 
-export const sourceTypeSchema = z.enum(["chat_session", "import", "manual", "seed"]);
+// mcp = provenance for facts an external AI app (Claude, ChatGPT…) saved over
+// MCP, one row per app per workspace. report = one medical document shared in
+// such a chat; its original file can be attached later through an upload link.
+export const sourceTypeSchema = z.enum(["chat_session", "import", "manual", "seed", "mcp", "report"]);
 
 // Soft taxonomy: hints for filtering/display, not a validation gate. The model
 // may emit values outside this list; they are coerced to "note" at the tool
@@ -89,9 +92,74 @@ export const sourceSchema = z.object({
   title: z.string().nullable(),
   content: z.string().nullable(),
   contentHash: z.string().nullable(),
+  // Display name of the external app that created it (mcp/report sources),
+  // captured at creation so provenance survives the app being disconnected.
+  clientName: z.string().nullable(),
   createdAt: z.string(),
 });
 export type Source = z.infer<typeof sourceSchema>;
+
+// ---------------------------------------------------------------------------
+// Report originals (files attached to a source)
+// ---------------------------------------------------------------------------
+
+export const storedFileMediaTypeSchema = z.enum([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+]);
+export type StoredFileMediaType = z.infer<typeof storedFileMediaTypeSchema>;
+
+export const sourceFileSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  sourceId: z.string().min(1),
+  fileName: z.string(),
+  mediaType: storedFileMediaTypeSchema,
+  sizeBytes: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type SourceFile = z.infer<typeof sourceFileSchema>;
+
+// A document-like source (an import or a report) with its originals and how
+// many facts were extracted from it — one row of the Reports view.
+export const reportSchema = sourceSchema.extend({
+  files: z.array(sourceFileSchema),
+  memoryCount: z.number().int().nonnegative(),
+});
+export type Report = z.infer<typeof reportSchema>;
+
+export const reportsResponseSchema = z.object({
+  reports: z.array(reportSchema),
+  // False when the server has nowhere durable to put files (FILES_DIR unset,
+  // e.g. on serverless): the UI hides upload affordances instead of failing.
+  fileStorageEnabled: z.boolean(),
+});
+export type ReportsResponse = z.infer<typeof reportsResponseSchema>;
+
+export const reportParamsSchema = z.object({
+  workspaceId: z.string().min(1),
+  sourceId: z.string().min(1),
+});
+export const fileParamsSchema = z.object({
+  workspaceId: z.string().min(1),
+  fileId: z.string().min(1),
+});
+
+// The public face of a one-time upload link: just enough for the upload page
+// to say what the file will be attached to.
+export const uploadLinkStatusSchema = z.enum(["ready", "used", "expired"]);
+export const uploadLinkInfoSchema = z.object({
+  status: uploadLinkStatusSchema,
+  reportTitle: z.string().nullable(),
+  workspaceName: z.string(),
+  expiresAt: z.string(),
+  maxBytes: z.number().int().positive(),
+});
+export type UploadLinkInfo = z.infer<typeof uploadLinkInfoSchema>;
+export const uploadTokenParamsSchema = z.object({ token: z.string().min(20).max(200) });
 
 // ---------------------------------------------------------------------------
 // Memory (atomic fact, append-only with supersession)
@@ -365,6 +433,28 @@ export const exportResponseSchema = z.object({
 export type ExportResponse = z.infer<typeof exportResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// Connected apps (external AI clients holding an OAuth grant over MCP)
+// ---------------------------------------------------------------------------
+
+export const connectionSchema = z.object({
+  clientId: z.string(),
+  name: z.string(),
+  icon: z.string().nullable(),
+  uri: z.string().nullable(),
+  scopes: z.array(z.string()),
+  connectedAt: z.string(),
+});
+export type Connection = z.infer<typeof connectionSchema>;
+
+export const connectionsResponseSchema = z.object({
+  // The URL to paste into Claude/ChatGPT. Comes from the server so it always
+  // matches the audience tokens are bound to.
+  mcpUrl: z.string(),
+  connections: z.array(connectionSchema),
+});
+export type ConnectionsResponse = z.infer<typeof connectionsResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Route params
 // ---------------------------------------------------------------------------
 
@@ -382,5 +472,8 @@ export const workspaceDetailSchema = z.object({
   workspace: workspaceSchema,
   memories: z.array(memorySchema),
   chatSessions: z.array(chatSessionSchema),
+  // Provenance lookup for memory.sourceId (content omitted — it can be a
+  // whole pasted document, and the rail only needs type/title/app).
+  sources: z.array(sourceSchema.omit({ content: true })),
 });
 export type WorkspaceDetail = z.infer<typeof workspaceDetailSchema>;

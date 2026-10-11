@@ -1,4 +1,4 @@
-import type { Memory, MemoryKind, Workspace } from "@caretalk/contracts/health";
+import type { Memory, MemoryKind, Workspace, WorkspaceDetail } from "@caretalk/contracts/health";
 import { Button } from "@caretalk/ui/components/button";
 import {
   Sidebar,
@@ -21,7 +21,7 @@ import { toast } from "sonner";
 
 import { healthApi } from "@/features/health/api";
 import { kindMeta, memoryKinds } from "@/features/health/kind-meta";
-import { MemoryRow } from "@/features/health/memory-row";
+import { MemoryRow, MemorySourcesContext } from "@/features/health/memory-row";
 import { ProfileCard } from "@/features/health/profile-card";
 import { TrendsSection } from "@/features/health/trends";
 
@@ -79,11 +79,13 @@ export function groupMemoriesByKind(memories: Memory[], showHistory: boolean): M
 export function MemoryRail({
   workspace,
   memories,
+  sources,
   onWorkspaceUpdated,
   onMemoriesChanged,
 }: {
   workspace: Workspace;
   memories: Memory[];
+  sources: WorkspaceDetail["sources"];
   onWorkspaceUpdated: (workspace: Workspace) => void;
   onMemoriesChanged: () => void;
 }) {
@@ -104,8 +106,10 @@ export function MemoryRail({
     [memories, showHistory],
   );
   const selectedSection = contextSections.find((item) => item.id === section) ?? contextSections[0];
+  const sourcesById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
 
   return (
+    <MemorySourcesContext.Provider value={sourcesById}>
     <SidebarProvider
       className="h-full min-h-0 w-full overflow-hidden"
       style={{ "--sidebar-width": "100%" } as CSSProperties}
@@ -213,6 +217,7 @@ export function MemoryRail({
         </SidebarFooter>
       </Sidebar>
     </SidebarProvider>
+    </MemorySourcesContext.Provider>
   );
 }
 

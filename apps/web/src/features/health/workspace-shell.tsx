@@ -1,8 +1,8 @@
 import { Button } from "@caretalk/ui/components/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@caretalk/ui/components/sheet";
-import type { ChatSession, Memory, Workspace } from "@caretalk/contracts/health";
+import type { ChatSession, Memory, Workspace, WorkspaceDetail } from "@caretalk/contracts/health";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, PanelRight, Upload } from "lucide-react";
+import { ArrowLeft, FileText, PanelRight, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ export function WorkspaceShell({
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sources, setSources] = useState<WorkspaceDetail["sources"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
@@ -37,6 +38,7 @@ export function WorkspaceShell({
     setWorkspace(detail.workspace);
     setMemories(detail.memories);
     setSessions(detail.chatSessions);
+    setSources(detail.sources);
     return detail;
   }, [workspaceId]);
 
@@ -138,6 +140,7 @@ export function WorkspaceShell({
   const rail = (
     <MemoryRail
       memories={memories}
+      sources={sources}
       onMemoriesChanged={() => void refreshWorkspace()}
       onWorkspaceUpdated={setWorkspace}
       workspace={workspace}
@@ -168,10 +171,18 @@ export function WorkspaceShell({
               sessions={sessions}
             />
           ) : null}
+          <Link params={{ workspaceId }} to="/workspaces/$workspaceId/reports">
+            <Button className="w-9 px-0 sm:w-auto sm:px-3" size="sm" variant="ghost">
+              <FileText className="size-3.5" />
+              <span className="hidden sm:inline">Reports</span>
+              <span className="sr-only sm:hidden">Reports</span>
+            </Button>
+          </Link>
           <Link params={{ workspaceId }} to="/workspaces/$workspaceId/import">
             <Button className="w-9 px-0 sm:w-auto sm:px-3" size="sm" variant="ghost">
               <Upload className="size-3.5" />
               <span className="hidden sm:inline">Import</span>
+              <span className="sr-only sm:hidden">Import</span>
             </Button>
           </Link>
           <Button

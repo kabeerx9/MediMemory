@@ -7,13 +7,18 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
-import { authClient } from "@/lib/auth-client";
+import { ConnectPair } from "@/features/connect/connect-visuals";
+import { useOAuthClient } from "@/features/connect/use-oauth-client";
+import { authClient, isOAuthFlow } from "@/lib/auth-client";
 
 import Loader from "./loader";
+
+type SignInResult = { url?: string; redirect?: boolean };
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
   const navigate = useNavigate({ from: "/" });
   const { isPending } = authClient.useSession();
+  const oauthFlow = isOAuthFlow();
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
@@ -21,7 +26,14 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       await authClient.signIn.email(
         { email: value.email, password: value.password },
         {
-          onSuccess: () => {
+          onSuccess: (context) => {
+            // Mid-connect, the server answers sign-in with where the OAuth
+            // flow continues (consent, or straight back to the app).
+            const next = (context.data as SignInResult | null)?.url;
+            if (oauthFlow && next) {
+              window.location.assign(next);
+              return;
+            }
             navigate({ to: "/workspaces" });
             toast.success("Signed in");
           },
@@ -46,10 +58,14 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       <div className="w-full max-w-sm">
         <Card variant="light">
           <CardContent className="space-y-6 pt-8">
-            <div className="space-y-1 text-center">
-              <h2 className="font-display text-2xl font-semibold text-card-foreground">Welcome back</h2>
-              <p className="text-sm text-muted-foreground">Sign in to Caretalk</p>
-            </div>
+            {oauthFlow ? (
+              <OAuthHeading />
+            ) : (
+              <div className="space-y-1 text-center">
+                <h2 className="font-display text-2xl font-semibold text-card-foreground">Welcome back</h2>
+                <p className="text-sm text-muted-foreground">Sign in to Caretalk</p>
+              </div>
+            )}
 
             <form
               className="space-y-4"
@@ -121,6 +137,24 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             </div>
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function OAuthHeading() {
+  const { client } = useOAuthClient(false);
+  const name = client?.name ?? "An app";
+  return (
+    <div className="space-y-4 text-center">
+      <ConnectPair icon={client?.icon ?? null} name={name} />
+      <div className="space-y-1">
+        <h2 className="font-display text-2xl font-semibold text-balance text-card-foreground">
+          Sign in to connect {client ? name : "your app"}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          You'll choose what it can do on the next screen.
+        </p>
       </div>
     </div>
   );

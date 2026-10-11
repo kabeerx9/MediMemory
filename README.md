@@ -19,6 +19,7 @@ A personal longitudinal health-memory app. One workspace per person you're track
 - [The import path](#the-import-path)
 - [The profile and its history](#the-profile-and-its-history)
 - [Auth and access control](#auth-and-access-control)
+- [Using Caretalk from Claude and ChatGPT (MCP)](#using-caretalk-from-claude-and-chatgpt-mcp)
 - [Time zones](#time-zones)
 - [Code map](#code-map)
 - [Deployment](#deployment)
@@ -596,6 +597,73 @@ in-process fixed-window counter on the two model-calling routes. It's a **spend
 guard against a runaway client, not a security control** — see
 [known limits](#design-notes-and-known-limits).
 
+## Using Caretalk from Claude and ChatGPT (MCP)
+
+Caretalk's own chat pays for a model per message. The MCP connector flips that:
+**Claude or ChatGPT is the model (on the subscription you already have), and
+Caretalk is the memory.** Any new chat, on any device, loads the whole history
+before answering and saves what's new, so no single conversation ever has to
+hold it all.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Claude / ChatGPT
+  participant S as Caretalk server
+  participant U as You (browser)
+
+  A->>S: POST /api/mcp (no token)
+  S-->>A: 401 + WWW-Authenticate → protected-resource metadata
+  A->>S: discovery (/.well-known/...) → register client (DCR or CIMD)
+  A->>U: open /api/auth/oauth2/authorize
+  U->>S: sign in → consent screen → Allow
+  S-->>A: code → token (PKCE) — JWT bound to /api/mcp, sub = your user
+  A->>S: tools/call get_workspace_context, save_memory, …
+```
+
+**Tools** (`apps/server/src/mcp/server.ts`):
+
+| Tool | What it's for |
+|---|---|
+| `list_workspaces` | Find which person/condition the user means |
+| `get_workspace_context` | Profile + every active memory + the memory rules. Same text blocks as the in-app system prompt, so the evals cover it |
+| `save_memory` | The same write path and description as the in-app tool; optional `reportId` links a fact to a document |
+| `update_profile` | Versioned, like every profile write |
+| `search_memories` | Superseded history and full metric series, which the context deliberately leaves out |
+| `register_report` | One per shared document. Returns `reportId` and a one-time upload link for the original |
+| `create_workspace` | Only on an explicit request |
+
+There is no delete tool. An external app can add, supersede, and rewrite the
+profile, and every one of those is reversible from the web app.
+
+**Trust boundary.** `requireMcpAuth` verifies the JWT (signature, issuer,
+audience = the MCP URL, expiry). Every tool then resolves workspaces through the
+same owner-scoped repository calls as the REST API, so a model passing someone
+else's `workspaceId` gets "not found". One extra check runs per request: **the
+user's consent for that app must still exist.** better-auth's own
+delete-consent leaves refresh tokens alive. Disconnect (`DELETE
+/api/v1/connections/:clientId`) removes the consent and every token for the app
+in one transaction, and the consent check makes it immediate instead of "when
+the current JWT expires". Signing out of the web app does *not* disconnect apps
+(tested).
+
+**Report originals.** The AI sees an uploaded photo/PDF but can only pass text
+to a tool, so `register_report` returns a link (`/upload/<token>`). The link
+works once, expires in 30 minutes, and only its sha256 is stored. It's spent by
+a conditional `UPDATE … WHERE used_at IS NULL AND expires_at > now()`, so two
+concurrent uploads can't both win. The file type is sniffed from the bytes
+(PDF/JPEG/PNG/WebP/HEIC only, since files are served back inline), stored under
+`FILES_DIR` with a server-generated key, and served `no-store` to the owner only.
+Without `FILES_DIR` (serverless), uploads are disabled with a clear message and
+facts still save.
+
+**Provenance.** Facts saved over MCP carry a `sources` row of type `mcp` (one per
+app per workspace, race-safe via a partial unique index) or `report`. The rail
+shows "via Claude" / "from KFT report".
+
+Setup lives in the web app under **Connected apps**: the connector URL, steps
+for Claude and ChatGPT, and the disconnect list.
+
 ---
 
 ## Time zones
@@ -668,9 +736,10 @@ surprise.
 
 Two Vercel projects from one repo (`rootDirectory` per project):
 
-- **caretalk-web** — static Vite build. `vercel.json` rewrites `/api/*` to the
-  server project and everything else to `index.html` (SPA). The proxy is
-  load-bearing for first-party cookies, as above.
+- **caretalk-web** — static Vite build. `vercel.json` rewrites `/api/*` and
+  `/.well-known/*` (OAuth discovery for MCP clients) to the server project and
+  everything else to `index.html` (SPA). The proxy is load-bearing for
+  first-party cookies, as above.
 - **caretalk-server** — a single serverless function. esbuild bundles the whole
   app (workspace packages included) into `api/index.mjs` at build time, so the
   runtime resolves no TS or workspace imports. `supportsResponseStreaming` keeps
@@ -709,7 +778,14 @@ AI_CHAT_REASONING_EFFORT=# xhigh/high/medium/low/minimal/none; optional
 AI_PROMPT_CACHE=true     # Anthropic caching via OpenRouter; ignored elsewhere
 AI_RATE_LIMIT=60         # model-calling requests per user per window
 AI_RATE_LIMIT_WINDOW_MS=3600000
+
+# Report originals. Unset = not stored (fine on serverless; facts still save).
+FILES_DIR=/var/lib/caretalk/files
+MAX_UPLOAD_BYTES=26214400
 ```
+
+`APP_TIMEZONE` matters more with MCP: external apps don't send a zone, so it is
+the only source of "today" for `get_workspace_context`.
 
 `apps/web/.env`: `VITE_SERVER_URL` — `http://localhost:3000` in dev; the
 frontend's own origin in prod (requests go through the proxy).
@@ -805,3 +881,20 @@ client message id never overwrites another session's message.
   authoritative; an untagged reading is invisible to Trends but never lost.
 - **Import dedup is keyed on a hash of title + text + file bytes.** A re-scan of
   the same page produces different bytes and correctly counts as a new document.
+- **MCP: one scope, full access.** A connected app can read and save across all
+  workspaces; the consent screen says so. Per-workspace scopes would be the
+  next step if more than one person ever uses an instance.
+- **MCP: a refresh racing Disconnect can leave a rotated refresh token.** It
+  can't call any tool (the consent check rejects it), but it would work again if
+  the same app is later reconnected. Closing it fully needs a consent check on
+  the refresh grant itself.
+- **Consent can't verify self-registered apps.** Dynamically registered clients
+  choose their own name and logo, so the consent screen leads with where access
+  is actually sent (from the signed request) and warns on a mismatch. Only
+  metadata-document (CIMD) clients get "verified".
+- **Report originals outlive their rows.** Deleting a source cascades its
+  `source_files` rows but not the bytes in `FILES_DIR`. There's no delete route
+  today; add file cleanup with one.
+- **The upload rate limit is per IP as Fastify sees it.** Behind a proxy without
+  `trustProxy`, that's one shared bucket. Tokens are 256-bit, so it's an abuse
+  cap, not an access control.

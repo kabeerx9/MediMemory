@@ -166,7 +166,9 @@ function Conversation({
         api: healthApi.chatUrl(workspaceId, sessionId),
         // React Native's global fetch can't stream responses; Expo's can.
         fetch: expoFetch as unknown as typeof globalThis.fetch,
-        headers: { Cookie: authClient.getCookie() },
+        // A function, not a value: the cookie read is async, and resolving
+        // it per request also picks up a refreshed session.
+        headers: async () => ({ Cookie: await authClient.getCookie() }),
         // Per-turn, not per-mount: a phone that travels should date facts by
         // where it is now.
         body: () => ({ timeZone: clientTimeZone() }),

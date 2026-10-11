@@ -18,6 +18,48 @@ import type { Memory, Workspace } from "@caretalk/contracts/health";
 //    header and does break the whole prefix — but only once a day, which is
 //    cheaper than re-deriving it further down.
 
+// Shared by the in-app system prompt and the MCP context tool, so an external
+// app reads exactly the rules and memory format the evals exercise.
+export const MEMORY_RULES = [
+  "## Memory rules",
+  "You own this workspace's permanent memory via the save_memory and update_profile tools.",
+  "SAVE (call save_memory): concrete facts — measurements with value/unit/date, medication starts/stops/dose changes, new or resolved symptoms, procedures, appointments, decisions, questions to ask the doctor. One fact per call, self-contained, dated when possible.",
+  "DO NOT SAVE: the user's questions to you, worry or speculation, your own explanations, general medical knowledge, duplicates of existing memories (check the list below first).",
+  "A message can contain both. 'His hemoglobin is 11.6, what does that mean?' → save the measurement, answer the question, don't save the question.",
+  "Dates: resolve relative dates ('yesterday', 'last Tuesday') against today's date before saving. If the user says when it happened, set happenedOn; otherwise leave it null.",
+  "MEASUREMENTS: whenever a fact carries a number, also fill metric (lowercase snake_case, reused verbatim across readings so the series groups — hemoglobin, systolic_bp, weight, hba1c), value, and unit. Blood pressure is ONE memory: value = systolic, valueSecondary = diastolic. Leave all four null on non-numeric facts. The prose in content must still stand alone.",
+  "SUPERSEDE vs ACCUMULATE — the one rule that must never be violated: measurements and lab values ALWAYS accumulate (new save, no supersedesId) because the series over time is the point. Use supersedesId ONLY when a fact replaces a prior state: dose changed, medication stopped, symptom resolved, appointment rescheduled. When superseding, reference the memory ID from the list below.",
+  "If a new fact contradicts an existing memory and you are not sure it's a state change (e.g. conflicting dose reports), save the new fact WITHOUT superseding and ask the user one short clarifying question.",
+  "PROFILE (call update_profile): keep the profile a current-state snapshot — diagnosis, current treatment, latest status, next appointment. Update after meaningful state changes, not every message. Full rewrite, markdown, under ~30 lines.",
+];
+
+
+export function buildProfileBlock(workspace: Workspace): string[] {
+  return [
+    "## Workspace profile (always current)",
+    `Name: ${workspace.name}`,
+    workspace.description ? `Description: ${workspace.description}` : null,
+    workspace.profile ?? "(no profile yet — create one with update_profile once you know the basics)",
+  ].filter((line): line is string => line !== null);
+}
+
+// The trailing [metric] tag is what keeps a series from fragmenting: the
+// model sees the slug it used for this quantity last time and reuses it,
+// instead of inventing a near-miss synonym on every reading.
+export function buildMemoryBlock(activeMemories: Memory[]): string[] {
+  return [
+    "## Active memories (id | happened | kind | fact [metric])",
+    activeMemories.length === 0
+      ? "(none yet)"
+      : activeMemories
+          .map((memory) => {
+            const base = `${memory.id} | ${memory.happenedOn ?? "undated"} | ${memory.kind} | ${memory.content}`;
+            return memory.metric ? `${base} [${memory.metric}]` : base;
+          })
+          .join("\n"),
+  ];
+}
+
 export function buildSystemPrompt(input: {
   workspace: Workspace;
   activeMemories: Memory[];
@@ -35,19 +77,6 @@ export function buildSystemPrompt(input: {
     `Today's date: ${today} (the user's local calendar day, time zone ${timeZone}). Resolve every relative date against this, never against UTC.`,
   ];
 
-  const memoryRules = [
-    "## Memory rules",
-    "You own this workspace's permanent memory via the save_memory and update_profile tools.",
-    "SAVE (call save_memory): concrete facts — measurements with value/unit/date, medication starts/stops/dose changes, new or resolved symptoms, procedures, appointments, decisions, questions to ask the doctor. One fact per call, self-contained, dated when possible.",
-    "DO NOT SAVE: the user's questions to you, worry or speculation, your own explanations, general medical knowledge, duplicates of existing memories (check the list below first).",
-    "A message can contain both. 'His hemoglobin is 11.6, what does that mean?' → save the measurement, answer the question, don't save the question.",
-    "Dates: resolve relative dates ('yesterday', 'last Tuesday') against today's date before saving. If the user says when it happened, set happenedOn; otherwise leave it null.",
-    "MEASUREMENTS: whenever a fact carries a number, also fill metric (lowercase snake_case, reused verbatim across readings so the series groups — hemoglobin, systolic_bp, weight, hba1c), value, and unit. Blood pressure is ONE memory: value = systolic, valueSecondary = diastolic. Leave all four null on non-numeric facts. The prose in content must still stand alone.",
-    "SUPERSEDE vs ACCUMULATE — the one rule that must never be violated: measurements and lab values ALWAYS accumulate (new save, no supersedesId) because the series over time is the point. Use supersedesId ONLY when a fact replaces a prior state: dose changed, medication stopped, symptom resolved, appointment rescheduled. When superseding, reference the memory ID from the list below.",
-    "If a new fact contradicts an existing memory and you are not sure it's a state change (e.g. conflicting dose reports), save the new fact WITHOUT superseding and ask the user one short clarifying question.",
-    "PROFILE (call update_profile): keep the profile a current-state snapshot — diagnosis, current treatment, latest status, next appointment. Update after meaningful state changes, not every message. Full rewrite, markdown, under ~30 lines.",
-  ];
-
   const modeRules =
     mode === "import"
       ? [
@@ -56,29 +85,10 @@ export function buildSystemPrompt(input: {
         ]
       : [];
 
-  const profileBlock = [
-    "## Workspace profile (always current)",
-    `Name: ${workspace.name}`,
-    workspace.description ? `Description: ${workspace.description}` : null,
-    workspace.profile ?? "(no profile yet — create one with update_profile once you know the basics)",
-  ].filter((line): line is string => line !== null);
+  const profileBlock = buildProfileBlock(workspace);
+  const memoryBlock = buildMemoryBlock(activeMemories);
 
-  // The trailing [metric] tag is what keeps a series from fragmenting: the
-  // model sees the slug it used for this quantity last time and reuses it,
-  // instead of inventing a near-miss synonym on every reading.
-  const memoryBlock = [
-    "## Active memories (id | happened | kind | fact [metric])",
-    activeMemories.length === 0
-      ? "(none yet)"
-      : activeMemories
-          .map((memory) => {
-            const base = `${memory.id} | ${memory.happenedOn ?? "undated"} | ${memory.kind} | ${memory.content}`;
-            return memory.metric ? `${base} [${memory.metric}]` : base;
-          })
-          .join("\n"),
-  ];
-
-  return [...header, "", ...memoryRules, "", ...modeRules, "", ...profileBlock, "", ...memoryBlock]
+  return [...header, "", ...MEMORY_RULES, "", ...modeRules, "", ...profileBlock, "", ...memoryBlock]
     .join("\n")
     .replaceAll("\n\n\n", "\n\n");
 }

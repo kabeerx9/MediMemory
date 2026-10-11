@@ -411,7 +411,8 @@ function Charts({
     return { spec: c, daily, visible };
   });
   const shown = series.filter((s) => s.visible > 0);
-  const empty = series.filter((s) => s.visible === 0).map((s) => s.spec.title.toLowerCase());
+  // Lower-case for mid-sentence use, but keep acronyms like HRV as written.
+  const empty = series.filter((s) => s.visible === 0).map((s) => (s.spec.title === s.spec.title.toUpperCase() ? s.spec.title : s.spec.title.toLowerCase()));
 
   return (
     <div className="flex flex-col gap-3">

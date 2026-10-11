@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { healthApi } from "@/features/health/api";
 
+import { ApiTokensCard } from "./api-tokens-card";
 import { AppAvatar } from "./connect-visuals";
 import { WhoopCard } from "./whoop-card";
 
@@ -183,6 +184,16 @@ export function ConnectionsPage() {
             </p>
           </div>
           <WhoopCard />
+        </section>
+
+        <section className="space-y-3" aria-labelledby="tokens">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground" id="tokens">
+              Personal tokens
+            </h2>
+            <p className="text-sm text-muted-foreground">For tools that can't sign in with a browser, like the Hermes CLI.</p>
+          </div>
+          <ApiTokensCard />
         </section>
       </div>
     </div>

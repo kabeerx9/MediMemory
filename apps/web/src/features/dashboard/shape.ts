@@ -121,3 +121,34 @@ export function niceTicks(min: number, max: number, target = 3): number[] {
   }
   return best.length ? best : [min, max];
 }
+
+/** Medications in force: active (not superseded) medication facts, newest first; undated last. */
+export function currentMedications(memories: Memory[]): Memory[] {
+  return memories
+    .filter((m) => m.kind === "medication" && !m.supersededById)
+    .sort((a, b) => (b.happenedOn ?? "").localeCompare(a.happenedOn ?? ""));
+}
+
+/** Recent events (visits, procedures, diagnoses) from the last `days`, newest first. Medications have their own list. */
+export function recentEvents(memories: Memory[], today: string, days: number): Memory[] {
+  const from = addDays(today, -(days - 1));
+  return memories
+    .filter((m) => m.kind === "event" && m.happenedOn && m.happenedOn >= from && m.happenedOn <= today)
+    .sort((a, b) => b.happenedOn!.localeCompare(a.happenedOn!));
+}
+
+/** Y-axis domain: padded min/max, or `fixed`. A lone reading gets ±10% so the axis reads sensibly. */
+export function valueDomain(values: number[], fixed?: [number, number]): [number, number] {
+  if (fixed) return fixed;
+  if (values.length === 0) return [0, 1];
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (min === max) {
+    const pad = Math.max(Math.abs(min) * 0.1, 1);
+    return [min - pad, max + pad];
+  }
+  const pad = (max - min) * 0.12;
+  min -= pad;
+  max += pad;
+  return [min, max];
+}

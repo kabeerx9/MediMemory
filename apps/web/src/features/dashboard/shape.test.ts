@@ -121,3 +121,44 @@ describe("niceTicks", () => {
     expect(niceTicks(5.4, 8.6)).toEqual([6, 7, 8]);
   });
 });
+
+describe("currentMedications", () => {
+  test("lists active medication facts, newest first, without superseded doses", async () => {
+    const { currentMedications } = await import("./shape");
+    const memories = [
+      memory({ id: "old", kind: "medication", content: "Metformin 500 mg", happenedOn: "2026-05-01", supersededById: "new" }),
+      memory({ id: "new", kind: "medication", content: "Metformin 1000 mg", happenedOn: "2026-09-30" }),
+      memory({ id: "ser", kind: "medication", content: "Sertraline 100 mg", happenedOn: "2026-04-21" }),
+      memory({ id: "undated", kind: "medication", content: "Vitamin D", happenedOn: null }),
+      memory({ id: "evt", kind: "event", content: "Clinic visit", happenedOn: "2026-10-01" }),
+    ];
+    expect(currentMedications(memories as never).map((m) => m.id)).toEqual(["new", "ser", "undated"]);
+  });
+});
+
+describe("recentEvents", () => {
+  test("keeps event facts (not medications) from the last N days, newest first", async () => {
+    const { recentEvents } = await import("./shape");
+    const memories = [
+      memory({ id: "visit", kind: "event", happenedOn: "2026-09-30" }),
+      memory({ id: "scan", kind: "event", happenedOn: "2026-10-05" }),
+      memory({ id: "med", kind: "medication", happenedOn: "2026-10-07" }),
+      memory({ id: "too-old", kind: "event", happenedOn: "2026-05-01" }),
+    ];
+    expect(recentEvents(memories as never, "2026-10-11", 90).map((m) => m.id)).toEqual(["scan", "visit"]);
+  });
+});
+
+describe("valueDomain", () => {
+  test("pads a single reading by 10% instead of ±1", async () => {
+    const { valueDomain } = await import("./shape");
+    const [lo, hi] = valueDomain([4115]);
+    expect(lo).toBeLessThan(3800);
+    expect(hi).toBeGreaterThan(4400);
+  });
+
+  test("keeps a fixed domain when given one", async () => {
+    const { valueDomain } = await import("./shape");
+    expect(valueDomain([50], [0, 100])).toEqual([0, 100]);
+  });
+});

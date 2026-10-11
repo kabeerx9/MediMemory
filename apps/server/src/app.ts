@@ -11,6 +11,7 @@ import { connectionRoutes } from "./routes/connections";
 import { mcpRoutes } from "./routes/mcp";
 import { reportRoutes } from "./routes/reports";
 import { whoopRoutes } from "./routes/whoop";
+import { trackerRoutes } from "./tracker/routes";
 
 // App assembly without listen(): the local entrypoint (index.ts) listens on a
 // port; the Vercel entrypoint (api/index.ts) feeds requests in via the node
@@ -65,6 +66,7 @@ export function buildApp() {
   fastify.register(reportRoutes);
   fastify.register(connectionRoutes);
   fastify.register(whoopRoutes);
+  fastify.register(trackerRoutes);
 
   // OAuth token, revocation, and (optionally) authorize requests are
   // form-encoded. Keep the raw string: better-auth parses it itself, and
